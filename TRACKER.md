@@ -5,7 +5,7 @@ Format: `T-ID [Pn] description | deps | acceptance`
 Priority: P1 now · P2 schedule · P3 delegate/later · P4 defer.
 
 ## Status
-- Current phase: 2
+- Current phase: 3
 - Last session: 2026-10-07
 - Next task: T-032 (T-005 awaiting MT-1)
 - Tasks done: 21 / 118
@@ -41,7 +41,7 @@ Priority: P1 now · P2 schedule · P3 delegate/later · P4 defer.
 - [x] T-031 [P1] `crypto/kdf.ts` PBKDF2 ≥600k, salt gen | T-010 | vector tests; iterations configurable
 - [x] T-032 [P1] `crypto/cipher.ts` AES-256-GCM chunked encrypt/decrypt | T-031 | round-trip; tamper fails; wrong key fails
 - [x] T-033 [P2] `crypto/sign.ts` HMAC manifest signing | T-031 | tamper detection test
-- [ ] T-034 [P2] Session passphrase cache + prompt-on-demand service | T-031 | cleared on unload
+- [x] T-034 [P2] Session passphrase cache + prompt-on-demand service | T-031 | cleared on unload
 
 ## Phase 3 — Core backup
 - [ ] T-040 [P1] `core/Scanner.ts` list files with exclusions, hidden toggle, forced backup-folder exclusion | T-015,T-018 | tests incl. hidden/trash/.git
@@ -192,3 +192,4 @@ _Format: `YYYY-MM-DD | tasks touched | tests added | decisions | blockers | next
 - 2026-10-07 | T-031 done | tests/crypto/kdf.test.ts (10: published PBKDF2-SHA256 vectors c=1,2,4096 and dkLen 40) | Two layers: pbkdf2Sha256 (raw, no policy, for vectors) and deriveKeyBytes (enforces >=600k iterations, rejects empty passphrase). Iterations are configurable above the floor. Session total: T-023, T-024, T-020, T-030, T-031; 116 tests passing. Coverage % not yet measured (PLAN wants >=85% in core/crypto); add a coverage script before Phase 3. | — | T-032
 - 2026-10-07 | T-032 done | tests/crypto/cipher.test.ts (~34 cases incl. every-byte-flip, truncation, reorder, duplicate, append, wrong key), tests/helpers/bytes.test.ts (6) | Format: magic RVE1 + chunkSize + frames (iv12|ct|tag16); AAD binds header, frame index and final flag, so truncation/reorder/extension fail. Streaming encryptStream/decryptStream; encrypt/decrypt wrap them. Wrong key and tampering are indistinguishable under GCM (both TamperError): T-075 needs a separate key-check value to report 'wrong passphrase'. Callers should pass a subkey, not the raw PBKDF2 output (see T-033). helpers/bytes.ts added (concat, base64, ByteQueue, bufferSource). | — | T-033
 - 2026-10-07 | T-033 done | tests/crypto/sign.test.ts (21: RFC 4231 HMAC vector, 11 tamper cases, key order independence, wrong key/missing/malformed) | HMAC covers all manifest fields EXCEPT hmac, status, verify (those legitimately change after creation, e.g. marking corrupt); canonical key-sorted JSON; constant-time verify via subtle.verify. Added hmacSha256, deriveSubKey, KEY_LABELS to kdf.ts: callers derive separate encrypt and manifest-HMAC subkeys from the PBKDF2 output. | — | T-034
+- 2026-10-07 | T-034 done | tests/crypto/passphrase.test.ts (13), 2 added to tests/services.test.ts | PassphraseService (src/crypto/passphrase.ts, a file not named in PLAN section 4) order: session cache, stored passphrase, prompt; concurrent prompts share one dialog; cancel is never cached; derived keys cached per salt+iterations and zero-filled on clear(). Services.passphrase added; main.onunload calls clear(). Prompt UI is injected (ServiceDeps.promptPassphrase) and absent until a UI task adds a modal: until then on-demand prompts count as cancelled. Settings UI for session cache/prompt toggles is T-103. Phase 2 complete. | — | T-040

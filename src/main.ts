@@ -21,6 +21,7 @@ export default class RewindVaultPlugin extends Plugin {
   }
 
   override onunload(): void {
+    this.services?.passphrase.clear();
     this.services?.logger.info("Rewind Vault unloaded");
     this.services = null;
   }

@@ -70,4 +70,39 @@ describe("createServices", () => {
     await new Promise((r) => setTimeout(r, 10));
     expect(await readText(store, "backup/log.txt")).toBe("2026-10-07T12:00:00.000Z INFO hello\n");
   });
+
+  it("passphrase service follows the profile's encryption settings and can be cleared", async () => {
+    const settings = createDefaultSettings();
+    settings.desktop.encryption.passphrase = "stored";
+    let prompts = 0;
+    const s = createServices({
+      settings,
+      store: new MockVaultStore(),
+      platform: new MockPlatform("desktop"),
+      logger: new MockLogger(),
+      saveSettings: async () => undefined,
+      promptPassphrase: async () => {
+        prompts++;
+        return "typed";
+      },
+    });
+    expect(await s.passphrase.getPassphrase()).toBe("stored");
+    expect(s.passphrase.hasCachedPassphrase).toBe(true);
+    s.passphrase.clear();
+    expect(s.passphrase.hasCachedPassphrase).toBe(false);
+    settings.desktop.encryption.passphrase = "";
+    expect(await s.passphrase.getPassphrase()).toBe("typed");
+    expect(prompts).toBe(1);
+  });
+
+  it("without a prompt provider, an on-demand prompt counts as cancelled", async () => {
+    const s = createServices({
+      settings: createDefaultSettings(),
+      store: new MockVaultStore(),
+      platform: new MockPlatform(),
+      logger: new MockLogger(),
+      saveSettings: async () => undefined,
+    });
+    await expect(s.passphrase.getPassphrase()).rejects.toThrow("cancelled");
+  });
 });

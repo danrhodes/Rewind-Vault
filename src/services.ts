@@ -1,4 +1,5 @@
 import { FILE_NAMES } from "./constants";
+import { PassphraseService, type PassphrasePrompt } from "./crypto/passphrase";
 import type { ILogger } from "./helpers/logger";
 import { Logger, RotatingFileSink } from "./helpers/logger";
 import type { IPlatform } from "./helpers/platform";
@@ -16,6 +17,8 @@ export interface Services {
   readonly logger: ILogger;
   readonly clock: IClock;
   readonly platform: IPlatform;
+  /** Passphrase cache and prompt. Call `passphrase.clear()` on unload. */
+  readonly passphrase: PassphraseService;
   /** Raw settings for both profiles. Edited by the settings tab. */
   readonly settings: Settings;
   /** Effective settings for this platform. Re-read after settings change. */
@@ -29,6 +32,8 @@ export interface ServiceDeps {
   platform: IPlatform;
   saveSettings: () => Promise<void>;
   clock?: IClock;
+  /** Shows the passphrase dialog. Until the UI task supplies one, prompting is treated as cancelled. */
+  promptPassphrase?: PassphrasePrompt;
   /** Supply to replace the default file logger (tests). */
   logger?: ILogger;
 }
@@ -39,11 +44,24 @@ export function createServices(deps: ServiceDeps): Services {
 
   const logger = deps.logger ?? createFileLogger(deps, clock);
 
+  const passphrase = new PassphraseService(
+    () => {
+      const e = resolveProfileFor(settings, platform).encryption;
+      return {
+        sessionCache: e.sessionCache,
+        promptOnDemand: e.promptOnDemand,
+        storedPassphrase: e.passphrase,
+      };
+    },
+    deps.promptPassphrase ?? (async () => null),
+  );
+
   return {
     store,
     logger,
     clock,
     platform,
+    passphrase,
     settings,
     getProfile: () => resolveProfileFor(settings, platform),
     saveSettings: deps.saveSettings,
