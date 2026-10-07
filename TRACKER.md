@@ -7,8 +7,8 @@ Priority: P1 now · P2 schedule · P3 delegate/later · P4 defer.
 ## Status
 - Current phase: 1
 - Last session: 2026-10-07
-- Next task: T-017 (T-005 awaiting MT-1)
-- Tasks done: 11 / 118
+- Next task: T-023 (T-005 awaiting MT-1)
+- Tasks done: 16 / 118
 
 ---
 
@@ -31,8 +31,8 @@ Priority: P1 now · P2 schedule · P3 delegate/later · P4 defer.
 - [x] T-018 [P1] `storage/VaultStore.ts` adapter wrapper (read/write binary, list, stat, mkdir, remove, rename) | T-010,T-004 | contract tests run on Mock + real impl shape
 - [x] T-019 [P1] `storage/AtomicWriter.ts` temp → rename | T-018 | fault test: crash mid-write leaves old file intact
 - [ ] T-020 [P2] `storage/FreeSpace.ts` estimate + precheck | T-018 | tests
-- [ ] T-021 [P1] `settings/defaults.ts` full defaults, desktop + mobile profiles | T-010 | typed against Settings
-- [ ] T-022 [P1] `settings/profiles.ts` resolveProfile(platform) | T-021,T-017 | tests
+- [x] T-021 [P1] `settings/defaults.ts` full defaults, desktop + mobile profiles | T-010 | typed against Settings
+- [x] T-022 [P1] `settings/profiles.ts` resolveProfile(platform) | T-021,T-017 | tests
 - [ ] T-023 [P1] `settings/migrate.ts` | T-021 | old → new fixture tests
 - [ ] T-024 [P1] `services.ts` DI container | T-018,T-013 | main wires it
 
@@ -182,3 +182,5 @@ _Format: `YYYY-MM-DD | tasks touched | tests added | decisions | blockers | next
 - 2026-10-07 | T-017 done | tests/helpers/platform.test.ts (4); added tests/mocks/MockPlatform.ts (extra mock, not in PLAN section 4 list) | IPlatform takes isMobile/isDesktop from main.ts so helpers never import obsidian. Battery via feature-detected navigator.getBattery, null if unavailable. | — | T-018
 - 2026-10-07 | T-018 done | tests/storage/VaultStore.contract.test.ts (17 incl. both impls), mocks/FakeAdapter.ts | IVaultStore + AdapterVaultStore (wraps Obsidian DataAdapter via AdapterLike subset; main.ts will pass app.vault.adapter). Semantics fixed by contract: rename fails if destination exists, mkdir recursive, writes create parents, errors wrapped in StorageError. Added removeFolder (needed by Retention). MockVaultStore now implements IVaultStore. | — | T-019
 - 2026-10-07 | T-019 done | tests/storage/AtomicWriter.test.ts (10, crash injected at each of the 4 mutating steps) | Replace protocol: write .tmp, verify size, old->.bak, tmp->target, delete .bak; recoverAtomic restores .bak if target missing, else clears leftovers (called automatically before each write; call on startup for index/state/manifest files too). | — | T-021
+- 2026-10-07 | T-021 done | tests/settings/defaults.test.ts (4) | Defaults: differential auto-style, startup+resume triggers on, interval on for desktop only, verify L2, keep last 10, mass-change guard on, encryption off. Mobile: 1000 files/50 MB zips, 256 KB chunks, 20% battery floor, no status bar. NOTE: Basic.includeHidden and Exclusions.excludeHidden overlap (both from PLAN section 7); Scanner (T-040) must define precedence: hidden files are included only if includeHidden && !excludeHidden. | — | T-022
+- 2026-10-07 | T-022 done | tests/settings/profiles.test.ts (5) | resolveProfile returns a deep copy and forces desktop-only options off on mobile (external destination, on-close trigger, status bar). Session total: T-017, T-018, T-019, T-021, T-022; 77 tests passing. | — | T-023 (T-020 is P2, deferred until P1s in phase 1 are done)
