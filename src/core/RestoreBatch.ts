@@ -48,6 +48,11 @@ export async function executeRestore(
         `overwrite was not chosen, nothing was written`,
     );
   }
+  if (preview.deletions.length > 0 && !options.overwrite) {
+    throw new RestoreError(
+      `${preview.deletions.length} file(s) would be deleted; overwrite was not chosen, nothing was written`,
+    );
+  }
   const replacing = new Set(preview.changes.map((c) => c.path));
   const result: RestoreBatchResult = {
     destinationRoot: preview.destinationRoot,

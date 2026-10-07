@@ -57,6 +57,19 @@ export interface RestoreFolderRequest {
   overwrite?: boolean;
 }
 
+export interface RestoreVaultRequest {
+  source: RestoreSource;
+  /** Defaults to the restore folder: the live vault is untouched unless `vault` is chosen. */
+  destination?: RestoreDestination;
+  /**
+   * Required to replace differing files or delete extra ones. Without it any difference
+   * aborts the restore before a single file is written.
+   */
+  overwrite?: boolean;
+  /** Vault destination only, and only together with `overwrite`: remove files the backup lacks. */
+  deleteExtraneous?: boolean;
+}
+
 export interface RestoreFileResult {
   /** Vault path that was written, or that already held identical content. */
   writtenTo: string;
@@ -129,6 +142,26 @@ export class RestoreEngine {
         `Folder "${request.path}" has no files in backup ${preview.source.id}`,
       );
     }
+    return executeRestore(ctx, plan, { overwrite: request.overwrite });
+  }
+
+  /**
+   * Restore the whole vault as it was at a backup or moment. Goes to the restore folder
+   * unless `destination` is explicitly the vault; nothing is overwritten or deleted without
+   * `overwrite`.
+   */
+  async restoreVault(request: RestoreVaultRequest): Promise<RestoreBatchResult> {
+    const destination = request.destination ?? { kind: "restore-folder" };
+    if (request.deleteExtraneous && (destination.kind !== "vault" || !request.overwrite)) {
+      throw new RestoreError("deleteExtraneous needs the vault destination and overwrite");
+    }
+    const ctx = this.context();
+    const plan = await planRestore(ctx, {
+      source: request.source,
+      scope: { kind: "all" },
+      destination,
+      deleteExtraneous: request.deleteExtraneous,
+    });
     return executeRestore(ctx, plan, { overwrite: request.overwrite });
   }
 }
