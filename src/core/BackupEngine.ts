@@ -15,6 +15,7 @@ import { executePlan, skipUnchanged, type ExecContext } from "./BackupExecutor";
 import { planBackup, type RunPlan } from "./BackupPlanner";
 import { autoVerifyBackup } from "./AutoVerify";
 import { loadState } from "./BackupState";
+import { applyRetention, type RetentionResult } from "./RetentionApply";
 import { emptyState } from "./Differ";
 import { LockManager, type LockOptions } from "./LockManager";
 import { guardStore } from "./NonDestructiveGuard";
@@ -183,7 +184,12 @@ export class BackupEngine {
         },
         plan.id,
       );
-      return verification ? { ...result, verification } : result;
+      const retention = options.nonDestructive ? null : await this.pruneOldBackups(store, profile);
+      return {
+        ...result,
+        ...(verification ? { verification } : {}),
+        ...(retention ? { retention } : {}),
+      };
     } catch (error) {
       await cleanUpFailedRun(store, backupFolder, createdFolder);
       if (error instanceof CancelledError) logger.info("Backup cancelled");
@@ -191,6 +197,32 @@ export class BackupEngine {
       throw error;
     } finally {
       await lock.release();
+    }
+  }
+
+  /**
+   * Retention runs last, after verification, so a backup that just failed its check is already
+   * marked corrupt and cannot push a good one out. A retention failure never fails the backup
+   * that was just committed.
+   */
+  private async pruneOldBackups(
+    store: IVaultStore,
+    profile: SettingsProfile,
+  ): Promise<RetentionResult | null> {
+    try {
+      const result = await applyRetention({
+        store,
+        logger: this.deps.logger,
+        backupFolder: profile.destination.backupFolder,
+        settings: profile.retention,
+        now: this.deps.clock.now(),
+      });
+      return result.pruned.length > 0 || result.failed.length > 0 ? result : null;
+    } catch (error) {
+      this.deps.logger.warn(
+        `Retention failed: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      return null;
     }
   }
 
