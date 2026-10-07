@@ -56,7 +56,7 @@ Priority: P1 now · P2 schedule · P3 delegate/later · P4 defer.
 - [x] T-049 [P1] BackupEngine non-destructive style | T-048 | never deletes prior backups
 - [x] T-050 [P1] Progress + cancel hooks in engine | T-047 | cancel leaves no partial `ok` backup
 - [x] T-051 [P2] `core/Checkpoint.ts` resume interrupted backup | T-047 | kill-and-resume test
-- [ ] T-052 [P2] Pre-run free-space check | T-020,T-047 | blocks when below threshold
+- [x] T-052 [P2] Pre-run free-space check | T-020,T-047 | blocks when below threshold
 - [ ] T-053 [P2] Skip-if-no-changes | T-048 | no backup created when diff empty
 
 ## Phase 4 — Restore
@@ -166,6 +166,7 @@ MT-2 | Obsidian desktop + mobile | Copy manifest.json + main.js into a test vaul
 
 ## Ideas Parking Lot
 _Out-of-plan ideas. Do not build until promoted to a task._
+- Garbage-collect unindexed backup folders (kill between manifest and index) and rebuild index.json from manifests if it is lost (2026-10-07).
 
 ## Session Log (append only)
 _Format: `YYYY-MM-DD | tasks touched | tests added | decisions | blockers | next`._
@@ -205,3 +206,4 @@ _Format: `YYYY-MM-DD | tasks touched | tests added | decisions | blockers | next
 - 2026-10-07 | T-049 done | tests/core/NonDestructive.test.ts (10) | Non-destructive = differential chain + runtime write-protection: NonDestructiveGuard wraps the store so any write/rename/remove inside a pre-existing backup folder is rejected (always as a rejected promise), on top of an engine-level test recording every mutation across 3 runs. Result carries nonDestructive:true; RETENTION (T-090) MUST SKIP runs where options.nonDestructive is set. runOptionsForStyle maps the autoStyle setting (off -> null). | — | T-050
 - 2026-10-07 | T-050 done | tests/core/BackupEngine.control.test.ts (8), existing engine tests moved to runOk() helper | Engine split: BackupEngine (lock, plan, cleanup), BackupExecutor (parts -> manifest -> index -> state), RunControl (progress + cancel), RunTypes. onProgress(phase scanning/packing/finalizing, part/file/byte counters, currentFile); isCancelled polled before start, after scan, between files and parts. Cancelled runs THROW CancelledError (not a result); a sweep test cancels at every poll point 1..N and asserts folder listing, state, index and lock are byte-identical to before. Cancel is ignored after the manifest commit. NEW: state-save failure now rolls the index back so it never points at a deleted folder. RunResult is now completed | skipped (union); tests use runOk(). | — | T-051
 - 2026-10-07 | T-051 done | tests/core/BackupEngine.resume.test.ts (10 incl. KILL SWEEP: process killed at every mutating call of a run, then resume(), reconstruction == live vault each time), support/dyingStore.ts | core/Checkpoint.ts: checkpoint.json written after every part (and once at start); API: engine.findResumable() (read-only), engine.resume(options) (falls back to a fresh backup, using options.mode, if there is no checkpoint or a finished part fails its size/hash check). A normal run() discards an unfinished backup left by a crash (never one with a manifest). Checkpoint removed on success, failure and cancel; a leftover one for an already-indexed backup is ignored. Kill leaves the lock until lockTimeoutMin passes (resume after a crash must wait out the stale lock). Orphan folders that have a manifest but are not indexed (kill between manifest and index) remain: harmless, not yet cleaned (see Ideas). UI offer-to-resume belongs to the command/UI tasks. | — | T-052
+- 2026-10-07 | T-052 done | tests/core/BackupEngine.space.test.ts (5) | EngineDeps.freeSpace (IFreeSpaceProbe) is checked after planning and BEFORE anything is created: required = estimateBackupBytes(remaining parts, compression level) + conditions.minFreeSpaceMb; below that the run throws InsufficientSpaceError with nothing written. Unknown free space passes (debug log). For a resumed run only the remaining parts count. Wiring a real probe (createStorageEstimateProbe) into services happens with the command/UI tasks. | — | T-053

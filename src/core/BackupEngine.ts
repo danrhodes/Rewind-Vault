@@ -6,6 +6,7 @@ import { CancelledError } from "../helpers/errors";
 import type { ILogger } from "../helpers/logger";
 import type { IClock } from "../helpers/time";
 import { createYielder } from "../helpers/yieldToUI";
+import { assertFreeSpace, estimateBackupBytes, type IFreeSpaceProbe } from "../storage/FreeSpace";
 import type { IVaultStore } from "../storage/VaultStore";
 import type { BackupIndex, BackupState, BackupType, PlatformKind, SettingsProfile } from "../types";
 import { findBackup, loadIndex } from "./BackupIndex";
@@ -35,6 +36,8 @@ export interface EngineDeps {
   pluginVersion: string;
   /** PBKDF2 master key for a salt. Wired to PassphraseService.getKey in services. */
   deriveMasterKey: (salt: Uint8Array, iterations: number) => Promise<Uint8Array>;
+  /** When set, a run is refused if free space is below the output estimate plus the reserve. */
+  freeSpace?: IFreeSpaceProbe;
   /** Test seams. */
   yieldIfNeeded?: () => Promise<void>;
   lockOptions?: Partial<LockOptions>;
@@ -142,6 +145,8 @@ export class BackupEngine {
         bytesTotal: plan.totalBytes,
       });
 
+      await this.checkSpace(plan, profile, resume?.nextPartIndex ?? 0);
+
       createdFolder = `${backupFolder}/${plan.folder}`;
       const ctx: ExecContext = {
         store,
@@ -170,6 +175,23 @@ export class BackupEngine {
     } finally {
       await lock.release();
     }
+  }
+
+  /** Refuse to start when the estimated output (plus the configured reserve) will not fit. */
+  private async checkSpace(
+    plan: RunPlan,
+    profile: SettingsProfile,
+    fromPart: number,
+  ): Promise<void> {
+    if (!this.deps.freeSpace) return;
+    const remaining = plan.parts.slice(fromPart).flat();
+    const required = estimateBackupBytes(remaining, profile.zip.compressionLevel);
+    const result = await assertFreeSpace(
+      this.deps.freeSpace,
+      required,
+      profile.conditions.minFreeSpaceMb,
+    );
+    if (!result.known) this.deps.logger.debug("Free space unknown on this platform, check skipped");
   }
 
   /** Remove this run's half-made folder and its checkpoint. Best effort, never throws. */
