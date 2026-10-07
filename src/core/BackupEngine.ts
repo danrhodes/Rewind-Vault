@@ -24,6 +24,7 @@ import { loadState, saveState } from "./BackupState";
 import { applyDiffToState, emptyState, stateFromHashed, type HashedFile } from "./Differ";
 import { LockManager, type LockOptions } from "./LockManager";
 import { createManifest, saveManifest } from "./Manifest";
+import { guardStore } from "./NonDestructiveGuard";
 import { packPart } from "./Packer";
 import { partName } from "./Splitter";
 
@@ -43,6 +44,11 @@ export interface EngineDeps {
 
 export interface RunOptions {
   mode: BackupType;
+  /**
+   * Only add backups: existing backup folders are write-protected for this run and
+   * retention must not run afterwards.
+   */
+  nonDestructive?: boolean;
 }
 
 export interface RunResult {
@@ -54,15 +60,19 @@ export interface RunResult {
   skippedFiles: string[];
   /** Set when a differential was requested but a full backup was made instead. */
   forcedFullReason?: string;
+  nonDestructive: boolean;
 }
 
 export class BackupEngine {
   constructor(private readonly deps: EngineDeps) {}
 
   async run(options: RunOptions): Promise<RunResult> {
-    const { store, logger, clock } = this.deps;
+    const { logger, clock } = this.deps;
     const profile = this.deps.getProfile();
     const backupFolder = profile.destination.backupFolder;
+    const store = options.nonDestructive
+      ? guardStore(this.deps.store, backupFolder, await this.existingBackupFolders(backupFolder))
+      : this.deps.store;
 
     const lock = new LockManager(store, backupFolder, clock, {
       timeoutMin: profile.safety.lockTimeoutMin,
@@ -95,7 +105,9 @@ export class BackupEngine {
         profile,
         lock,
         index,
+        options,
         state ?? emptyState(0, SCHEMA_VERSION.state),
+        store,
       );
       logger.info(`Backup ${plan.id} completed (${result.bytes} bytes)`);
       return result;
@@ -115,9 +127,10 @@ export class BackupEngine {
     profile: SettingsProfile,
     lock: LockManager,
     index: BackupIndex,
+    options: RunOptions,
     previousState: BackupState,
+    store: IVaultStore,
   ): Promise<RunResult> {
-    const { store } = this.deps;
     const backupFolder = profile.destination.backupFolder;
     const folderPath = `${backupFolder}/${plan.folder}`;
     const yieldIfNeeded = this.deps.yieldIfNeeded ?? createYielder();
@@ -213,7 +226,15 @@ export class BackupEngine {
       bytes,
       skippedFiles: [...plan.skippedOverMax, ...skippedFiles],
       forcedFullReason: plan.forcedFullReason,
+      nonDestructive: options.nonDestructive === true,
     };
+  }
+
+  private async existingBackupFolders(backupFolder: string): Promise<Set<string>> {
+    const { store } = this.deps;
+    if (!(await store.exists(backupFolder))) return new Set();
+    const { folders } = await store.list(backupFolder);
+    return new Set(folders.map((f) => f.slice(backupFolder.length + 1)));
   }
 
   /** A damaged state.json must not block backups: the planner turns null into a full backup. */
