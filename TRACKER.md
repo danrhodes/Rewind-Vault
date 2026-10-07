@@ -22,7 +22,7 @@ Priority: P1 now · P2 schedule · P3 delegate/later · P4 defer.
 ## Phase 1 — Foundations
 - [x] T-010 [P1] `types.ts`: Settings, Manifest, BackupEntry, FileInfo, VerifyReport, BackupIndex | T-003 | compiles, no `any`
 - [x] T-011 [P1] `constants.ts`: schema versions, file names, defaults | T-010 | —
-- [ ] T-012 [P1] `helpers/errors.ts` typed error classes | T-010 | unit tests
+- [x] T-012 [P1] `helpers/errors.ts` typed error classes | T-010 | unit tests
 - [ ] T-013 [P1] `helpers/logger.ts` with level + rotating file sink | T-004 | rotation test
 - [ ] T-014 [P1] `helpers/time.ts`, `format.ts` (bytes, durations, timestamps for folder names) | T-010 | unit tests
 - [ ] T-015 [P1] `helpers/glob.ts` exclusion matcher | T-010 | tests for `**`, `*`, negation, hidden dirs
@@ -174,3 +174,4 @@ _Format: `YYYY-MM-DD | tasks touched | tests added | decisions | blockers | next
 - 2026-10-07 | T-004 done | tests/mocks/mocks.test.ts (2 tests) | Mocks are structural (no interfaces yet): IVaultStore/ILogger/IClock do not exist until T-018/T-013/T-014, which should extract interfaces from these shapes. MockVaultStore has exists/readBinary/writeBinary/stat/mkdir/list/remove/rename + seed helper. | — | T-005
 - 2026-10-07 | T-005 workflow written, left [~] | none | Local equivalents of all CI steps pass and `npm ci` dry-run works; acceptance is 'green on push', which needs a real push (MT-1). Mark [x] once MT-1 passes. | — | T-010 (next unblocked P1)
 - 2026-10-07 | T-010, T-011 done | none (declarations and constants only; no `core/`/`crypto/` functions) | Settings = `{schemaVersion, desktop, mobile}` profiles, each with 12 groups mirroring PLAN §7. Added `BackupState`/`FileState` for state.json. Settings UI for all new fields is T-103; defaults are T-021. | — | T-012
+- 2026-10-07 | T-012 done | tests/helpers/errors.test.ts (3) | `cause` declared manually (lib ES2020 has no Error.cause). | — | T-013
