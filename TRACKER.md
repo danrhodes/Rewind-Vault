@@ -5,10 +5,10 @@ Format: `T-ID [Pn] description | deps | acceptance`
 Priority: P1 now · P2 schedule · P3 delegate/later · P4 defer.
 
 ## Status
-- Current phase: 0
+- Current phase: 1
 - Last session: 2026-10-07
-- Next task: T-010 (T-005 awaiting MT-1)
-- Tasks done: 4 / 118
+- Next task: T-012 (T-005 awaiting MT-1)
+- Tasks done: 6 / 118
 
 ---
 
@@ -20,8 +20,8 @@ Priority: P1 now · P2 schedule · P3 delegate/later · P4 defer.
 - [~] T-005 [P2] CI workflow: typecheck, lint, test, build | T-001 | green on push
 
 ## Phase 1 — Foundations
-- [ ] T-010 [P1] `types.ts`: Settings, Manifest, BackupEntry, FileInfo, VerifyReport, BackupIndex | T-003 | compiles, no `any`
-- [ ] T-011 [P1] `constants.ts`: schema versions, file names, defaults | T-010 | —
+- [x] T-010 [P1] `types.ts`: Settings, Manifest, BackupEntry, FileInfo, VerifyReport, BackupIndex | T-003 | compiles, no `any`
+- [x] T-011 [P1] `constants.ts`: schema versions, file names, defaults | T-010 | —
 - [ ] T-012 [P1] `helpers/errors.ts` typed error classes | T-010 | unit tests
 - [ ] T-013 [P1] `helpers/logger.ts` with level + rotating file sink | T-004 | rotation test
 - [ ] T-014 [P1] `helpers/time.ts`, `format.ts` (bytes, durations, timestamps for folder names) | T-010 | unit tests
@@ -173,3 +173,4 @@ _Format: `YYYY-MM-DD | tasks touched | tests added | decisions | blockers | next
 - 2026-10-07 | T-003 done | none (stubs only) | Skeleton = every file named in PLAN §4 as `export {};` (52 src files, 3 mocks) plus .gitkeep in tests subfolders. | — | T-004
 - 2026-10-07 | T-004 done | tests/mocks/mocks.test.ts (2 tests) | Mocks are structural (no interfaces yet): IVaultStore/ILogger/IClock do not exist until T-018/T-013/T-014, which should extract interfaces from these shapes. MockVaultStore has exists/readBinary/writeBinary/stat/mkdir/list/remove/rename + seed helper. | — | T-005
 - 2026-10-07 | T-005 workflow written, left [~] | none | Local equivalents of all CI steps pass and `npm ci` dry-run works; acceptance is 'green on push', which needs a real push (MT-1). Mark [x] once MT-1 passes. | — | T-010 (next unblocked P1)
+- 2026-10-07 | T-010, T-011 done | none (declarations and constants only; no `core/`/`crypto/` functions) | Settings = `{schemaVersion, desktop, mobile}` profiles, each with 12 groups mirroring PLAN §7. Added `BackupState`/`FileState` for state.json. Settings UI for all new fields is T-103; defaults are T-021. | — | T-012
