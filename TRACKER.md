@@ -5,7 +5,7 @@ Format: `T-ID [Pn] description | deps | acceptance`
 Priority: P1 now · P2 schedule · P3 delegate/later · P4 defer.
 
 ## Status
-- Current phase: 4
+- Current phase: 5
 - Last session: 2026-10-07
 - Next task: T-075 (T-005 awaiting MT-1)
 - Tasks done: 52 / 118
