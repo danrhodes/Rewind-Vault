@@ -23,7 +23,7 @@ Priority: P1 now · P2 schedule · P3 delegate/later · P4 defer.
 - [x] T-010 [P1] `types.ts`: Settings, Manifest, BackupEntry, FileInfo, VerifyReport, BackupIndex | T-003 | compiles, no `any`
 - [x] T-011 [P1] `constants.ts`: schema versions, file names, defaults | T-010 | —
 - [x] T-012 [P1] `helpers/errors.ts` typed error classes | T-010 | unit tests
-- [ ] T-013 [P1] `helpers/logger.ts` with level + rotating file sink | T-004 | rotation test
+- [x] T-013 [P1] `helpers/logger.ts` with level + rotating file sink | T-004 | rotation test
 - [ ] T-014 [P1] `helpers/time.ts`, `format.ts` (bytes, durations, timestamps for folder names) | T-010 | unit tests
 - [ ] T-015 [P1] `helpers/glob.ts` exclusion matcher | T-010 | tests for `**`, `*`, negation, hidden dirs
 - [ ] T-016 [P1] `helpers/chunk.ts`, `yieldToUI.ts` | T-010 | chunker tests; yield returns control
@@ -175,3 +175,4 @@ _Format: `YYYY-MM-DD | tasks touched | tests added | decisions | blockers | next
 - 2026-10-07 | T-005 workflow written, left [~] | none | Local equivalents of all CI steps pass and `npm ci` dry-run works; acceptance is 'green on push', which needs a real push (MT-1). Mark [x] once MT-1 passes. | — | T-010 (next unblocked P1)
 - 2026-10-07 | T-010, T-011 done | none (declarations and constants only; no `core/`/`crypto/` functions) | Settings = `{schemaVersion, desktop, mobile}` profiles, each with 12 groups mirroring PLAN §7. Added `BackupState`/`FileState` for state.json. Settings UI for all new fields is T-103; defaults are T-021. | — | T-012
 - 2026-10-07 | T-012 done | tests/helpers/errors.test.ts (3) | `cause` declared manually (lib ES2020 has no Error.cause). | — | T-013
+- 2026-10-07 | T-013 done | tests/helpers/logger.test.ts (5) | ILogger defined in helpers/logger.ts (matches MockLogger). Rotating sink keeps one rotation (`log.txt.1`) and takes a minimal LogFileStore interface so it does not depend on T-018. Size cap setting (`logSizeCapKb`) UI is T-103. | — | T-014
