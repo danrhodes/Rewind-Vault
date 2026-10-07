@@ -8,6 +8,7 @@ import { findBackup, loadIndex } from "./BackupIndex";
 import { loadManifest } from "./Manifest";
 import type { MasterKeyFn } from "./RestoreReader";
 import { checkPartContent } from "./VerifyContent";
+import { pickSample, seededRandom } from "../helpers/random";
 import { checkChain } from "./VerifyChain";
 import { prepareKeys } from "./VerifyKeys";
 import { checkEntryParts, checkPartStructure } from "./VerifyStructure";
@@ -30,6 +31,12 @@ export interface VerifyProgress {
 
 export interface VerifyOptions {
   level: VerifyLevel;
+  /**
+   * Check the contents of only about `pct` percent of the entries, chosen at random (the same
+   * `seed` always picks the same ones). Structure and chain checks stay complete. Ignored below
+   * level 2, and 100 means everything.
+   */
+  sample?: { pct: number; seed?: number };
   onProgress?: (progress: VerifyProgress) => void;
   /** Polled between parts and entries; when true the check stops with CancelledError. */
   isCancelled?: () => boolean;
@@ -59,8 +66,13 @@ export class VerifyEngine {
     const backup = findBackup(index, backupId);
     if (!backup) throw new VerificationError(`Backup "${backupId}" is not in the backup index`);
 
+    const sampling = options.sample;
+    if (sampling && !(sampling.pct > 0 && sampling.pct <= 100)) {
+      throw new VerificationError("Sampling percentage must be above 0 and at most 100");
+    }
     const issues: VerifyIssue[] = [];
     const skipped: string[] = [];
+    let sampleInfo: VerifyReport["sample"];
     let entriesChecked = 0;
     const folder = `${backupFolder}/${backup.folder}`;
     const manifest = await this.readManifest(folder, issues);
@@ -81,6 +93,12 @@ export class VerifyEngine {
         issues,
         skipped,
       );
+      let sample: Set<string> | undefined;
+      if (sampling && sampling.pct < 100 && options.level >= 2) {
+        const paths = manifest.entries.map((e) => e.path);
+        sample = pickSample(paths, sampling.pct, seededRandom(sampling.seed ?? clock.now()));
+        sampleInfo = { pct: sampling.pct, entriesSampled: sample.size, entriesTotal: paths.length };
+      }
       for (const [i, part] of manifest.parts.entries()) {
         await tick();
         options.onProgress?.({
@@ -104,6 +122,7 @@ export class VerifyEngine {
               // Without a key the contents of encrypted entries cannot be hashed: stop at L2.
               level: options.level >= 3 && (!manifest.encryption.enabled || encryptionKey) ? 3 : 2,
               encryptionKey,
+              sample,
               tick,
             },
             issues,
@@ -116,7 +135,11 @@ export class VerifyEngine {
       issues.push(...chain.issues);
       // Every backup this one depends on must itself be intact; a quick integrity pass each.
       for (const dep of chain.dependencies) {
-        const sub = await this.verify(dep.id, { level: 2, isCancelled: options.isCancelled });
+        const sub = await this.verify(dep.id, {
+          level: 2,
+          sample: options.sample,
+          isCancelled: options.isCancelled,
+        });
         for (const issue of sub.issues)
           issues.push({ ...issue, backupId: issue.backupId ?? dep.id });
         entriesChecked += sub.entriesChecked;
@@ -132,6 +155,7 @@ export class VerifyEngine {
       result: issues.length === 0 ? "pass" : "fail",
       entriesChecked,
       issues,
+      ...(sampleInfo ? { sample: sampleInfo } : {}),
       ...(skipped.length > 0 ? { skipped } : {}),
     };
     this.deps.logger.info(

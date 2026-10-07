@@ -133,6 +133,8 @@ export interface VerifyReport {
   result: "pass" | "fail";
   entriesChecked: number;
   issues: VerifyIssue[];
+  /** Present when only a random sample of entries had their contents checked. */
+  sample?: { pct: number; entriesSampled: number; entriesTotal: number };
   /** Checks that could not run (for example no passphrase for an encrypted backup). Not failures. */
   skipped?: string[];
 }

@@ -15,6 +15,8 @@ export interface PartContentCheck {
   level: 2 | 3;
   /** Needed to read inside encrypted entries at level 3. */
   encryptionKey?: CryptoKey;
+  /** When set, only these entries get the content checks (structure is always complete). */
+  sample?: ReadonlySet<string>;
   /** Called after each entry: polls cancel and yields. */
   tick: () => Promise<void>;
 }
@@ -40,10 +42,16 @@ export async function checkPartContent(
   issues: VerifyIssue[],
 ): Promise<void> {
   const { part, data } = check;
-  if (sha256Hex(data) !== part.sha256) {
+  const sampled = (name: string): boolean => !check.sample || check.sample.has(name);
+  // A part is hashed whole, so when sampling only parts that hold a sampled entry are hashed.
+  if (check.directory.some((e) => sampled(e.name)) && sha256Hex(data) !== part.sha256) {
     issues.push({ part: part.name, message: "Part content does not match its recorded SHA-256" });
   }
   for (const entry of check.directory) {
+    if (!sampled(entry.name)) {
+      await check.tick();
+      continue;
+    }
     const problem = (message: string): void => {
       issues.push({ part: part.name, path: entry.name, message });
     };
