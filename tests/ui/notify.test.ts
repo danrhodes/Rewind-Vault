@@ -147,8 +147,12 @@ describe("Notifier.backupResult", () => {
     notifier.backupResult(
       result({ forcedFullReason: "state unreadable", skippedFiles: ["big.bin"] }),
     );
-    expect(shown.map((s) => s.message).join("|")).toContain("full backup instead");
     expect(shown.map((s) => s.message).join("|")).toContain("1 file(s) were left out");
+    // A forced full backup is only information (the first backup always is one).
+    expect(shown.map((s) => s.message).join("|")).not.toContain("full backup instead");
+    const loud = setup("verbose");
+    loud.notifier.backupResult(result({ forcedFullReason: "state unreadable" }));
+    expect(loud.shown.map((s) => s.message).join("|")).toContain("full backup instead");
   });
 
   it("silent shows none of it", () => {

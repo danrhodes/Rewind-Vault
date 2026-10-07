@@ -1,12 +1,18 @@
 import { FILE_NAMES } from "./constants";
+import { BackupEngine } from "./core/BackupEngine";
+import { RestoreEngine } from "./core/RestoreEngine";
+import { verifyAndRecord } from "./core/VerifyRunner";
+import type { VerifyOptions } from "./core/VerifyEngine";
 import { PassphraseService, type PassphrasePrompt } from "./crypto/passphrase";
 import type { ILogger } from "./helpers/logger";
 import { Logger, RotatingFileSink } from "./helpers/logger";
 import type { IPlatform } from "./helpers/platform";
 import { systemClock, type IClock } from "./helpers/time";
 import { resolveProfileFor } from "./settings/profiles";
+import { createStorageEstimateProbe, type IFreeSpaceProbe } from "./storage/FreeSpace";
 import type { IVaultStore } from "./storage/VaultStore";
-import type { Settings, SettingsProfile } from "./types";
+import { Notifier, type ShowNotice } from "./ui/notify";
+import type { Settings, SettingsProfile, VerifyReport } from "./types";
 
 /**
  * The object UI, commands and triggers receive. Engines never reach for globals:
@@ -21,6 +27,12 @@ export interface Services {
   readonly passphrase: PassphraseService;
   /** Raw settings for both profiles. Edited by the settings tab. */
   readonly settings: Settings;
+  readonly backup: BackupEngine;
+  readonly restore: RestoreEngine;
+  /** Notices honouring the notification level. */
+  readonly notifier: Notifier;
+  /** Verify an existing backup under the backup lock and record the result (marks corrupt on failure). */
+  verifyBackup(backupId: string, options: VerifyOptions): Promise<VerifyReport>;
   /** Effective settings for this platform. Re-read after settings change. */
   getProfile(): SettingsProfile;
   saveSettings(): Promise<void>;
@@ -34,6 +46,12 @@ export interface ServiceDeps {
   clock?: IClock;
   /** Shows the passphrase dialog. Until the UI task supplies one, prompting is treated as cancelled. */
   promptPassphrase?: PassphrasePrompt;
+  /** Plugin version written into manifests. Defaults to 0.0.0 (tests). */
+  pluginVersion?: string;
+  /** Shows a transient message; main passes `new Notice`. Defaults to doing nothing. */
+  showNotice?: ShowNotice;
+  /** Free-space probe for the pre-run check. Defaults to the browser storage estimate. */
+  freeSpace?: IFreeSpaceProbe;
   /** Supply to replace the default file logger (tests). */
   logger?: ILogger;
 }
@@ -56,6 +74,34 @@ export function createServices(deps: ServiceDeps): Services {
     deps.promptPassphrase ?? (async () => null),
   );
 
+  const getProfile = (): SettingsProfile => resolveProfileFor(settings, platform);
+  const deriveMasterKey = (salt: Uint8Array, iterations: number): Promise<Uint8Array> =>
+    passphrase.getKey(salt, iterations);
+
+  const backup = new BackupEngine({
+    store,
+    logger,
+    clock,
+    getProfile,
+    platform: platform.kind,
+    pluginVersion: deps.pluginVersion ?? "0.0.0",
+    deriveMasterKey,
+    freeSpace: deps.freeSpace ?? createStorageEstimateProbe(),
+  });
+
+  const restore = new RestoreEngine({
+    store,
+    logger,
+    clock,
+    getProfile,
+    deriveMasterKey,
+    // A restore into the vault is preceded by a differential backup of the live vault.
+    safetySnapshot: async () => {
+      const result = await backup.run({ mode: "diff" });
+      return result.status === "completed" ? { backupId: result.backupId } : null;
+    },
+  });
+
   return {
     store,
     logger,
@@ -63,7 +109,16 @@ export function createServices(deps: ServiceDeps): Services {
     platform,
     passphrase,
     settings,
-    getProfile: () => resolveProfileFor(settings, platform),
+    backup,
+    restore,
+    notifier: new Notifier(deps.showNotice ?? (() => undefined), getProfile),
+    verifyBackup: (backupId, options) =>
+      verifyAndRecord(
+        { store, logger, clock, getProfile, platform: platform.kind, deriveMasterKey },
+        backupId,
+        options,
+      ),
+    getProfile,
     saveSettings: deps.saveSettings,
   };
 }

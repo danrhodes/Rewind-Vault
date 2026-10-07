@@ -66,7 +66,8 @@ export class Notifier {
     const files = `${result.fileCount} file${result.fileCount === 1 ? "" : "s"}`;
     this.success(`Backup complete: ${files}, ${formatBytes(result.bytes)}.`);
     if (result.forcedFullReason) {
-      this.warning(`Made a full backup instead of a differential one: ${result.forcedFullReason}.`);
+      // Info, not a warning: the very first backup is always promoted to a full one.
+      this.info(`Made a full backup instead of a differential one: ${result.forcedFullReason}.`);
     }
     if (result.skippedFiles.length > 0) {
       this.warning(`${result.skippedFiles.length} file(s) were left out. See the log for details.`);
