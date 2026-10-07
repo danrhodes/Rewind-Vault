@@ -7,8 +7,8 @@ Priority: P1 now · P2 schedule · P3 delegate/later · P4 defer.
 ## Status
 - Current phase: 3
 - Last session: 2026-10-07
-- Next task: T-042 (T-005 awaiting MT-1)
-- Tasks done: 26 / 118
+- Next task: T-047 (T-005 awaiting MT-1)
+- Tasks done: 31 / 118
 
 ---
 
@@ -50,7 +50,7 @@ Priority: P1 now · P2 schedule · P3 delegate/later · P4 defer.
 - [x] T-043 [P1] `core/Splitter.ts` max files, max source MB, max output MB, over-max toggle | T-042 | boundary tests
 - [x] T-044 [P1] `core/Packer.ts` fflate streaming ZIP, level 0–9, optional encryption | T-032,T-043 | opens in standard unzip when unencrypted
 - [x] T-045 [P1] `core/LockManager.ts` acquire/release/stale detection | T-019 | concurrent-run test
-- [ ] T-046 [P1] `BackupIndex` + `state.json` read/write | T-041 | tests
+- [x] T-046 [P1] `BackupIndex` + `state.json` read/write | T-041 | tests
 - [ ] T-047 [P1] `core/BackupEngine.ts` full mode | T-040–T-046 | 1k-file vault round-trip
 - [ ] T-048 [P1] BackupEngine differential mode with tombstones | T-047 | chain test
 - [ ] T-049 [P1] BackupEngine non-destructive style | T-048 | never deletes prior backups
@@ -199,3 +199,4 @@ _Format: `YYYY-MM-DD | tasks touched | tests added | decisions | blockers | next
 - 2026-10-07 | T-043 done | tests/core/Splitter.test.ts (20 incl. 8 random-property runs) | Limits: file count, source bytes, output bytes (0 = unlimited). Output size is unknowable before compression, so the output cap is applied as an extra source-size bound (min of the two caps). Over-max file: own part if processOverMax, else skipped and reported. partName(n) = part-NNN.zip. | — | T-044
 - 2026-10-07 | T-044 done | tests/core/Packer.test.ts (19) | fflate 0.8.3 added as the one runtime dependency (PLAN section 5). Unencrypted parts verified externally: python -m zipfile -t and unzip -t both pass at levels 0, 6, 9 with non-ASCII names. Encrypted parts: ZIP container whose entry payloads are AES-GCM(deflate(data)); FILE NAMES STAY PLAINTEXT in the ZIP and manifest (privacy trade-off, flag for README / possible later task). Parts are assembled in memory (IVaultStore has no append), so memory is bounded by the splitter caps. Packer hashes the bytes it actually reads; vanished files go to skipped; cancel hook between files. | — | T-045
 - 2026-10-07 | T-045 done | tests/core/LockManager.test.ts (14) | Advisory lock in <backupFolder>/lock.json with heartbeat. Acquire = check, write, settle 50 ms, re-read to confirm ownership (the adapter has no exclusive create). Stale when now - heartbeat > timeoutMin (boundary: exactly at timeout is still live). Calls on one instance are serialised; unreadable lock files count as abandoned; release never removes another owner's lock; a taken-over owner learns on refresh(). Residual risk: across synced devices an overlap is still possible, which is why part files and manifests are written atomically and the manifest last. Engine must call refresh() between parts (T-047). | — | T-046
+- 2026-10-07 | T-046 done | tests/core/BackupIndex.test.ts (24), tests/core/BackupState.test.ts (15) | New files outside PLAN section 4: core/BackupIndex.ts (index.json registry + add/update/remove/sort/chainFor), core/BackupState.ts (state.json), helpers/validate.ts (shared FieldValidator, isSafeRelPath, isHex64). Manifest.ts refactored onto the validator (288 -> 241 lines, its 50 tests unchanged and green). Loading runs recoverAtomic first; a missing index/state is empty (no history), a damaged one is an ERROR (never silently reset, engine decides: state damaged -> force full). Session total: T-042..T-046; 349 tests passing. | — | T-047
