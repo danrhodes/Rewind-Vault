@@ -29,7 +29,7 @@ Priority: P1 now · P2 schedule · P3 delegate/later · P4 defer.
 - [x] T-016 [P1] `helpers/chunk.ts`, `yieldToUI.ts` | T-010 | chunker tests; yield returns control
 - [x] T-017 [P1] `helpers/platform.ts` (isMobile, isDesktop, battery, visibility wrappers) | T-010 | mockable
 - [x] T-018 [P1] `storage/VaultStore.ts` adapter wrapper (read/write binary, list, stat, mkdir, remove, rename) | T-010,T-004 | contract tests run on Mock + real impl shape
-- [ ] T-019 [P1] `storage/AtomicWriter.ts` temp → rename | T-018 | fault test: crash mid-write leaves old file intact
+- [x] T-019 [P1] `storage/AtomicWriter.ts` temp → rename | T-018 | fault test: crash mid-write leaves old file intact
 - [ ] T-020 [P2] `storage/FreeSpace.ts` estimate + precheck | T-018 | tests
 - [ ] T-021 [P1] `settings/defaults.ts` full defaults, desktop + mobile profiles | T-010 | typed against Settings
 - [ ] T-022 [P1] `settings/profiles.ts` resolveProfile(platform) | T-021,T-017 | tests
@@ -181,3 +181,4 @@ _Format: `YYYY-MM-DD | tasks touched | tests added | decisions | blockers | next
 - 2026-10-07 | T-016 done | tests/helpers/chunk.test.ts (8) | `chunkBytes` returns subarray views (no copy). `createYielder(budgetMs, now, yieldFn)` added so loops yield only when ~30 ms of work has passed. Session total: T-012..T-016, 35 tests passing. | — | T-017
 - 2026-10-07 | T-017 done | tests/helpers/platform.test.ts (4); added tests/mocks/MockPlatform.ts (extra mock, not in PLAN section 4 list) | IPlatform takes isMobile/isDesktop from main.ts so helpers never import obsidian. Battery via feature-detected navigator.getBattery, null if unavailable. | — | T-018
 - 2026-10-07 | T-018 done | tests/storage/VaultStore.contract.test.ts (17 incl. both impls), mocks/FakeAdapter.ts | IVaultStore + AdapterVaultStore (wraps Obsidian DataAdapter via AdapterLike subset; main.ts will pass app.vault.adapter). Semantics fixed by contract: rename fails if destination exists, mkdir recursive, writes create parents, errors wrapped in StorageError. Added removeFolder (needed by Retention). MockVaultStore now implements IVaultStore. | — | T-019
+- 2026-10-07 | T-019 done | tests/storage/AtomicWriter.test.ts (10, crash injected at each of the 4 mutating steps) | Replace protocol: write .tmp, verify size, old->.bak, tmp->target, delete .bak; recoverAtomic restores .bak if target missing, else clears leftovers (called automatically before each write; call on startup for index/state/manifest files too). | — | T-021
