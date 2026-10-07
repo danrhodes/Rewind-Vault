@@ -5,7 +5,7 @@ Format: `T-ID [Pn] description | deps | acceptance`
 Priority: P1 now · P2 schedule · P3 delegate/later · P4 defer.
 
 ## Status
-- Current phase: 1
+- Current phase: 2
 - Last session: 2026-10-07
 - Next task: T-023 (T-005 awaiting MT-1)
 - Tasks done: 16 / 118
@@ -37,7 +37,7 @@ Priority: P1 now · P2 schedule · P3 delegate/later · P4 defer.
 - [x] T-024 [P1] `services.ts` DI container | T-018,T-013 | main wires it
 
 ## Phase 2 — Crypto
-- [ ] T-030 [P1] `crypto/hash.ts` streaming SHA-256 | T-016 | known-vector tests
+- [x] T-030 [P1] `crypto/hash.ts` streaming SHA-256 | T-016 | known-vector tests
 - [ ] T-031 [P1] `crypto/kdf.ts` PBKDF2 ≥600k, salt gen | T-010 | vector tests; iterations configurable
 - [ ] T-032 [P1] `crypto/cipher.ts` AES-256-GCM chunked encrypt/decrypt | T-031 | round-trip; tamper fails; wrong key fails
 - [ ] T-033 [P2] `crypto/sign.ts` HMAC manifest signing | T-031 | tamper detection test
@@ -188,3 +188,4 @@ _Format: `YYYY-MM-DD | tasks touched | tests added | decisions | blockers | next
 - 2026-10-07 | T-023 done | tests/settings/migrate.test.ts (7) | migrateSettings: merge-over-defaults (unknown keys dropped, wrong types fall back), range clamps, KDF iterations floored at 600k, v0 (flat profile) -> v1 (desktop/mobile) step. v0 shape is my reconstruction of a pre-profile layout; no released version ever wrote it. | — | T-024
 - 2026-10-07 | T-024 done | tests/services.test.ts (4) | Services = store, logger, clock, platform, settings, getProfile(), saveSettings(). main.ts now loads+migrates settings and builds services (lifecycle only). Default logger writes to <backupFolder>/log.txt, level debug only when notifications.level is verbose. Real-runtime load check queued as MT-2. | — | T-020
 - 2026-10-07 | T-020 done | tests/storage/FreeSpace.test.ts (7) | Free space comes from navigator.storage.estimate() (browser quota, a hint not true disk space) and the check PASSES when unknown so backups are never blocked by a missing API. Estimate assumes 60% compression (level>0). minFreeMb reserve is added on top; T-052 wires it into the engine. Phase 1 complete. | — | T-030
+- 2026-10-07 | T-030 done | tests/crypto/hash.test.ts (11: NIST vectors incl. 1M-a, all split sizes, 0-200 byte lengths vs Web Crypto, async streams) | Hand-written incremental SHA-256 (class Sha256) because Web Crypto digest() cannot stream. No new dependency. Test references use Web Crypto, not node:crypto, so src/tests stay free of Node typings. Also toHex/fromHex here. | — | T-031
