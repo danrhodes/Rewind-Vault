@@ -5,6 +5,7 @@ import { createYielder } from "../helpers/yieldToUI";
 import type { IVaultStore } from "../storage/VaultStore";
 import type { SettingsProfile } from "../types";
 import type { ResolvedFile, RestoreSource } from "./ChainResolver";
+import { listFileVersions, type FileVersion } from "./FileVersions";
 import { executeRestore, type RestoreBatchResult } from "./RestoreBatch";
 import { planRestore } from "./RestorePlan";
 import type { MasterKeyFn } from "./RestoreReader";
@@ -28,6 +29,7 @@ export type {
   RestoreScope,
 } from "./RestoreTypes";
 export { destinationPath };
+export type { FileVersion };
 export type { RestoreBatchResult } from "./RestoreBatch";
 
 export interface RestoreDeps {
@@ -74,6 +76,16 @@ export interface RestoreVaultRequest {
   overwrite?: boolean;
   /** Vault destination only, and only together with `overwrite`: remove files the backup lacks. */
   deleteExtraneous?: boolean;
+}
+
+export interface RestoreVersionRequest {
+  /** Vault-relative path of the file. */
+  path: string;
+  /** A `backupId` from `listFileVersions`. */
+  backupId: string;
+  /** Defaults to the restore folder, where each version lands under its own backup id. */
+  destination?: RestoreDestination;
+  overwrite?: boolean;
 }
 
 export interface RestoreFileResult {
@@ -179,5 +191,29 @@ export class RestoreEngine {
       deleteExtraneous: request.deleteExtraneous,
     });
     return executeRestore(ctx, plan, { overwrite: request.overwrite, ...control });
+  }
+
+  /** All distinct versions of a file across intact backups, oldest first. */
+  async listFileVersions(path: string): Promise<FileVersion[]> {
+    return listFileVersions(this.deps.store, this.context().backupFolder, path);
+  }
+
+  /**
+   * Restore one specific version of a file: the content it had in the chosen backup. Rejects
+   * a backup where the file did not exist. Lands in the restore folder unless told otherwise.
+   */
+  async restoreFileVersion(
+    request: RestoreVersionRequest,
+    control: RestoreControl = {},
+  ): Promise<RestoreFileResult> {
+    return this.restoreFile(
+      {
+        source: { id: request.backupId },
+        path: request.path,
+        destination: request.destination ?? { kind: "restore-folder" },
+        overwrite: request.overwrite,
+      },
+      control,
+    );
   }
 }
