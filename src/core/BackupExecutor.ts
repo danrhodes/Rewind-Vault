@@ -187,3 +187,25 @@ export async function executePlan(ctx: ExecContext): Promise<CompletedResult> {
     nonDestructive: ctx.nonDestructive,
   };
 }
+
+/**
+ * A differential run found nothing to back up. No backup is created, but files whose
+ * only change was a new timestamp are recorded in state.json so they are not hashed
+ * again on every later run.
+ */
+export async function skipUnchanged(
+  store: IVaultStore,
+  backupFolder: string,
+  plan: RunPlan,
+  state: BackupState,
+  now: number,
+): Promise<void> {
+  if (plan.touched.length === 0) return;
+  const refreshed = applyDiffToState(
+    state,
+    { added: [], changed: [], touched: plan.touched, deleted: [], unchanged: 0 },
+    [],
+    now,
+  );
+  await saveState(store, backupFolder, refreshed);
+}

@@ -201,7 +201,7 @@ describe("checkpoint and resume", () => {
     w.clock.advance(31 * MIN);
     expect(await w.engineOn().findResumable()).toBeNull();
     const result = await w.engineOn().resume({ mode: "diff" });
-    expect(result.status).toBe("completed");
+    expect(result.status).toBe("skipped"); // nothing changed since the backup that did finish
     expect(await w.raw.exists(checkpointPath("backup"))).toBe(false);
     expect((await loadIndex(w.raw, "backup")).backups[0]!.type).toBe("full");
   });

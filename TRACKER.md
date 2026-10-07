@@ -5,7 +5,7 @@ Format: `T-ID [Pn] description | deps | acceptance`
 Priority: P1 now · P2 schedule · P3 delegate/later · P4 defer.
 
 ## Status
-- Current phase: 3
+- Current phase: 4
 - Last session: 2026-10-07
 - Next task: T-047 (T-005 awaiting MT-1)
 - Tasks done: 31 / 118
@@ -57,7 +57,7 @@ Priority: P1 now · P2 schedule · P3 delegate/later · P4 defer.
 - [x] T-050 [P1] Progress + cancel hooks in engine | T-047 | cancel leaves no partial `ok` backup
 - [x] T-051 [P2] `core/Checkpoint.ts` resume interrupted backup | T-047 | kill-and-resume test
 - [x] T-052 [P2] Pre-run free-space check | T-020,T-047 | blocks when below threshold
-- [ ] T-053 [P2] Skip-if-no-changes | T-048 | no backup created when diff empty
+- [x] T-053 [P2] Skip-if-no-changes | T-048 | no backup created when diff empty
 
 ## Phase 4 — Restore
 - [ ] T-060 [P1] `core/Unpacker.ts` stream entries with filter | T-044 | tests
@@ -207,3 +207,4 @@ _Format: `YYYY-MM-DD | tasks touched | tests added | decisions | blockers | next
 - 2026-10-07 | T-050 done | tests/core/BackupEngine.control.test.ts (8), existing engine tests moved to runOk() helper | Engine split: BackupEngine (lock, plan, cleanup), BackupExecutor (parts -> manifest -> index -> state), RunControl (progress + cancel), RunTypes. onProgress(phase scanning/packing/finalizing, part/file/byte counters, currentFile); isCancelled polled before start, after scan, between files and parts. Cancelled runs THROW CancelledError (not a result); a sweep test cancels at every poll point 1..N and asserts folder listing, state, index and lock are byte-identical to before. Cancel is ignored after the manifest commit. NEW: state-save failure now rolls the index back so it never points at a deleted folder. RunResult is now completed | skipped (union); tests use runOk(). | — | T-051
 - 2026-10-07 | T-051 done | tests/core/BackupEngine.resume.test.ts (10 incl. KILL SWEEP: process killed at every mutating call of a run, then resume(), reconstruction == live vault each time), support/dyingStore.ts | core/Checkpoint.ts: checkpoint.json written after every part (and once at start); API: engine.findResumable() (read-only), engine.resume(options) (falls back to a fresh backup, using options.mode, if there is no checkpoint or a finished part fails its size/hash check). A normal run() discards an unfinished backup left by a crash (never one with a manifest). Checkpoint removed on success, failure and cancel; a leftover one for an already-indexed backup is ignored. Kill leaves the lock until lockTimeoutMin passes (resume after a crash must wait out the stale lock). Orphan folders that have a manifest but are not indexed (kill between manifest and index) remain: harmless, not yet cleaned (see Ideas). UI offer-to-resume belongs to the command/UI tasks. | — | T-052
 - 2026-10-07 | T-052 done | tests/core/BackupEngine.space.test.ts (5) | EngineDeps.freeSpace (IFreeSpaceProbe) is checked after planning and BEFORE anything is created: required = estimateBackupBytes(remaining parts, compression level) + conditions.minFreeSpaceMb; below that the run throws InsufficientSpaceError with nothing written. Unknown free space passes (debug log). For a resumed run only the remaining parts count. Wiring a real probe (createStorageEstimateProbe) into services happens with the command/UI tasks. | — | T-053
+- 2026-10-07 | T-053 done | tests/core/BackupEngine.skip.test.ts (7) | Differential run (incl. non-destructive) returns {status:'skipped',reason:'no-changes'} when nothing was added/changed/deleted and conditions.skipIfNoChanges is on; full runs and the first-ever run are never skipped. Timestamp-only changes are skipped but written to state.json so they are not re-hashed. Resumes are never skipped. Refactor: unfinished-run helpers moved to core/UnfinishedRuns.ts (engine 291 -> 239 lines). Phase 3 complete. | — | T-060

@@ -8,21 +8,17 @@ import type { IClock } from "../helpers/time";
 import { createYielder } from "../helpers/yieldToUI";
 import { assertFreeSpace, estimateBackupBytes, type IFreeSpaceProbe } from "../storage/FreeSpace";
 import type { IVaultStore } from "../storage/VaultStore";
-import type { BackupIndex, BackupState, BackupType, PlatformKind, SettingsProfile } from "../types";
+import type { BackupState, BackupType, PlatformKind, SettingsProfile } from "../types";
 import { findBackup, loadIndex } from "./BackupIndex";
-import { executePlan, type ExecContext } from "./BackupExecutor";
+import { loadCheckpoint } from "./Checkpoint";
+import { executePlan, skipUnchanged, type ExecContext } from "./BackupExecutor";
 import { planBackup, type RunPlan } from "./BackupPlanner";
 import { loadState } from "./BackupState";
-import {
-  clearCheckpoint,
-  completedPartsIntact,
-  loadCheckpoint,
-  type CheckpointData,
-} from "./Checkpoint";
 import { emptyState } from "./Differ";
 import { LockManager, type LockOptions } from "./LockManager";
 import { guardStore } from "./NonDestructiveGuard";
 import { RunControl } from "./RunControl";
+import { cleanUpFailedRun, discardUnfinished, usableCheckpoint } from "./UnfinishedRuns";
 import type { RunOptions, RunResult } from "./RunTypes";
 
 export type { RunOptions, RunProgress, RunResult } from "./RunTypes";
@@ -120,23 +116,30 @@ export class BackupEngine {
       control.assertNotCancelled();
       const index = await loadIndex(store, backupFolder);
       const resume = wantResume
-        ? await this.usableCheckpoint(store, backupFolder, index)
-        : await this.discardUnfinished(store, backupFolder, index).then(() => null);
+        ? await usableCheckpoint(store, logger, backupFolder, index)
+        : await discardUnfinished(store, logger, backupFolder, index).then(() => null);
       const state = await this.loadStateOrNull(backupFolder);
 
-      const plan =
-        resume?.plan ??
-        (
-          await planBackup({
-            store,
-            profile,
-            requested: options.mode,
-            now: clock.now(),
-            index,
-            state,
-            yieldIfNeeded: this.deps.yieldIfNeeded,
-          })
-        ).plan;
+      let plan: RunPlan;
+      if (resume) {
+        plan = resume.plan;
+      } else {
+        const outcome = await planBackup({
+          store,
+          profile,
+          requested: options.mode,
+          now: clock.now(),
+          index,
+          state,
+          yieldIfNeeded: this.deps.yieldIfNeeded,
+        });
+        if (outcome.noChanges && profile.conditions.skipIfNoChanges && state) {
+          await skipUnchanged(store, backupFolder, outcome.plan, state, clock.now());
+          logger.info("Nothing changed since the last backup: skipped");
+          return { status: "skipped", reason: "no-changes" };
+        }
+        plan = outcome.plan;
+      }
       control.assertNotCancelled();
       this.announce(plan, resume !== null);
       control.update({
@@ -168,7 +171,7 @@ export class BackupEngine {
       logger.info(`Backup ${plan.id} completed (${result.bytes} bytes)`);
       return result;
     } catch (error) {
-      await this.cleanUp(store, backupFolder, createdFolder);
+      await cleanUpFailedRun(store, backupFolder, createdFolder);
       if (error instanceof CancelledError) logger.info("Backup cancelled");
       else logger.error(`Backup failed: ${error instanceof Error ? error.message : String(error)}`);
       throw error;
@@ -192,61 +195,6 @@ export class BackupEngine {
       profile.conditions.minFreeSpaceMb,
     );
     if (!result.known) this.deps.logger.debug("Free space unknown on this platform, check skipped");
-  }
-
-  /** Remove this run's half-made folder and its checkpoint. Best effort, never throws. */
-  private async cleanUp(
-    store: IVaultStore,
-    backupFolder: string,
-    folderPath: string | null,
-  ): Promise<void> {
-    try {
-      if (folderPath && (await store.exists(folderPath))) await store.removeFolder(folderPath);
-      await clearCheckpoint(store, backupFolder);
-    } catch {
-      // Leftovers are handled by the next run.
-    }
-  }
-
-  /** The checkpoint if it can still be continued; otherwise it is discarded and null returned. */
-  private async usableCheckpoint(
-    store: IVaultStore,
-    backupFolder: string,
-    index: BackupIndex,
-  ): Promise<CheckpointData | null> {
-    const cp = await loadCheckpoint(store, backupFolder);
-    if (!cp) {
-      await clearCheckpoint(store, backupFolder);
-      return null;
-    }
-    const folderPath = `${backupFolder}/${cp.plan.folder}`;
-    const intact =
-      !findBackup(index, cp.plan.id) &&
-      (await store.exists(folderPath)) &&
-      (await completedPartsIntact(store, folderPath, cp));
-    if (intact) return cp;
-    this.deps.logger.warn(`Cannot resume backup ${cp.plan.id}: starting a new one instead`);
-    await this.discardUnfinished(store, backupFolder, index);
-    return null;
-  }
-
-  /** Drop a checkpoint and the unfinished folder it points to (never a finished backup). */
-  private async discardUnfinished(
-    store: IVaultStore,
-    backupFolder: string,
-    index: BackupIndex,
-  ): Promise<void> {
-    const cp = await loadCheckpoint(store, backupFolder);
-    if (cp && !findBackup(index, cp.plan.id)) {
-      const folderPath = `${backupFolder}/${cp.plan.folder}`;
-      const unfinished =
-        (await store.exists(folderPath)) && !(await store.exists(`${folderPath}/manifest.json`));
-      if (unfinished) {
-        this.deps.logger.warn(`Discarding unfinished backup ${cp.plan.id}`);
-        await store.removeFolder(folderPath).catch(() => undefined);
-      }
-    }
-    await clearCheckpoint(store, backupFolder);
   }
 
   private announce(plan: RunPlan, resumed: boolean): void {
