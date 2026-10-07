@@ -139,6 +139,6 @@ export function chainFor(index: BackupIndex, id: string): BackupEntry[] | null {
   if (!base || base.type !== "full") return null;
   const diffs = index.backups
     .filter((b) => b.type === "diff" && b.baseId === base.id && b.createdAt <= target.createdAt)
-    .sort((a, b) => a.createdAt - b.createdAt);
+    .sort((a, b) => a.createdAt - b.createdAt || (a.id < b.id ? -1 : 1));
   return [base, ...diffs];
 }

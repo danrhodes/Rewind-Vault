@@ -8,7 +8,8 @@ export type ErrorCode =
   | "verification"
   | "cancelled"
   | "config"
-  | "insufficient-space";
+  | "insufficient-space"
+  | "chain";
 
 export interface ErrorOptions {
   cause?: unknown;
@@ -70,6 +71,13 @@ export class TamperError extends RewindError {
 export class VerificationError extends RewindError {
   constructor(message: string, options: ErrorOptions = {}) {
     super("verification", message, options);
+  }
+}
+
+/** A backup chain cannot be followed: missing, damaged or inconsistent links. */
+export class BrokenChainError extends RewindError {
+  constructor(message: string, options: ErrorOptions = {}) {
+    super("chain", message, options);
   }
 }
 
