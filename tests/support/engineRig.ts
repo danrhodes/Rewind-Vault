@@ -1,4 +1,5 @@
 import { BackupEngine, type EngineDeps } from "../../src/core/BackupEngine";
+import { VerifyEngine } from "../../src/core/VerifyEngine";
 import { RestoreEngine, type RestoreDeps } from "../../src/core/RestoreEngine";
 import type { CompletedResult, RunOptions } from "../../src/core/RunTypes";
 import { createDefaultProfile } from "../../src/settings/defaults";
@@ -86,5 +87,15 @@ export function restoreEngineFor(r: Rig, extra: Partial<RestoreDeps> = {}): Rest
       return res.status === "completed" ? { backupId: res.backupId } : null;
     },
     ...extra,
+  });
+}
+
+/** A VerifyEngine sharing the rig's store, clock, logger and profile. */
+export function verifyEngineFor(r: Rig): VerifyEngine {
+  return new VerifyEngine({
+    store: r.store,
+    logger: r.logger,
+    clock: r.clock,
+    getProfile: () => r.profile,
   });
 }
