@@ -7,8 +7,8 @@ Priority: P1 now · P2 schedule · P3 delegate/later · P4 defer.
 ## Status
 - Current phase: 3
 - Last session: 2026-10-07
-- Next task: T-032 (T-005 awaiting MT-1)
-- Tasks done: 21 / 118
+- Next task: T-042 (T-005 awaiting MT-1)
+- Tasks done: 26 / 118
 
 ---
 
@@ -45,7 +45,7 @@ Priority: P1 now · P2 schedule · P3 delegate/later · P4 defer.
 
 ## Phase 3 — Core backup
 - [x] T-040 [P1] `core/Scanner.ts` list files with exclusions, hidden toggle, forced backup-folder exclusion | T-015,T-018 | tests incl. hidden/trash/.git
-- [ ] T-041 [P1] `core/Manifest.ts` load/save/validate/version | T-010,T-019 | schema validation tests
+- [x] T-041 [P1] `core/Manifest.ts` load/save/validate/version | T-010,T-019 | schema validation tests
 - [ ] T-042 [P1] `core/Differ.ts` added/changed/deleted via mtime+size then hash | T-040,T-030,T-041 | property tests
 - [ ] T-043 [P1] `core/Splitter.ts` max files, max source MB, max output MB, over-max toggle | T-042 | boundary tests
 - [ ] T-044 [P1] `core/Packer.ts` fflate streaming ZIP, level 0–9, optional encryption | T-032,T-043 | opens in standard unzip when unencrypted
@@ -194,3 +194,4 @@ _Format: `YYYY-MM-DD | tasks touched | tests added | decisions | blockers | next
 - 2026-10-07 | T-033 done | tests/crypto/sign.test.ts (21: RFC 4231 HMAC vector, 11 tamper cases, key order independence, wrong key/missing/malformed) | HMAC covers all manifest fields EXCEPT hmac, status, verify (those legitimately change after creation, e.g. marking corrupt); canonical key-sorted JSON; constant-time verify via subtle.verify. Added hmacSha256, deriveSubKey, KEY_LABELS to kdf.ts: callers derive separate encrypt and manifest-HMAC subkeys from the PBKDF2 output. | — | T-034
 - 2026-10-07 | T-034 done | tests/crypto/passphrase.test.ts (13), 2 added to tests/services.test.ts | PassphraseService (src/crypto/passphrase.ts, a file not named in PLAN section 4) order: session cache, stored passphrase, prompt; concurrent prompts share one dialog; cancel is never cached; derived keys cached per salt+iterations and zero-filled on clear(). Services.passphrase added; main.onunload calls clear(). Prompt UI is injected (ServiceDeps.promptPassphrase) and absent until a UI task adds a modal: until then on-demand prompts count as cancelled. Settings UI for session cache/prompt toggles is T-103. Phase 2 complete. | — | T-040
 - 2026-10-07 | T-040 done | tests/core/Scanner.test.ts (13) | Precedence settled: hidden paths kept only if includeHidden && !excludeHidden; .obsidian/.trash/.git/node_modules have their own toggles (.git and node_modules match at any depth, .obsidian and .trash only at vault root); backup folder always excluded (segment-exact, so backup2/ is NOT excluded). Excluded folders are never listed. User globs are gitignore-style; a folder-level match cannot be rescued by negation. Restore folder is NOT excluded (PLAN only forces the backup folder). | — | T-041
+- 2026-10-07 | T-041 done | tests/core/Manifest.test.ts (~50 cases) | validateManifest returns a clean typed copy and rejects: bad enums/hashes/numbers, duplicate paths and parts, unknown part refs, entryCount mismatches, change-actions or tombstones in a full backup, a diff without baseId, paths that are absolute, contain .. or backslashes (path-traversal guard for restore), weak KDF when encryption is on, newer schemaVersion (upgrade message). saveManifest validates then writes atomically. Manifest.ts is 288 lines: split before adding more. Session total: T-032, T-033, T-034, T-040, T-041; 239 tests passing. | — | T-042
