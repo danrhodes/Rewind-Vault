@@ -1,32 +1,24 @@
+import { SCHEMA_VERSION } from "../constants";
 import { importAesKey } from "../crypto/cipher";
 import { KEY_LABELS, deriveSubKey } from "../crypto/kdf";
-import { signManifest } from "../crypto/sign";
 import { fromBase64 } from "../helpers/bytes";
-import { ENCRYPTION, SCHEMA_VERSION } from "../constants";
+import { CancelledError } from "../helpers/errors";
 import type { ILogger } from "../helpers/logger";
 import type { IClock } from "../helpers/time";
 import { createYielder } from "../helpers/yieldToUI";
-import { writeAtomic } from "../storage/AtomicWriter";
 import type { IVaultStore } from "../storage/VaultStore";
-import type {
-  BackupIndex,
-  BackupState,
-  BackupType,
-  Manifest,
-  ManifestEntry,
-  ManifestPart,
-  PlatformKind,
-  SettingsProfile,
-} from "../types";
-import { addBackup, entryFromManifest, loadIndex, saveIndex } from "./BackupIndex";
+import type { BackupState, PlatformKind, SettingsProfile } from "../types";
+import { loadIndex } from "./BackupIndex";
+import { executePlan, type ExecContext } from "./BackupExecutor";
 import { planBackup, type RunPlan } from "./BackupPlanner";
-import { loadState, saveState } from "./BackupState";
-import { applyDiffToState, emptyState, stateFromHashed, type HashedFile } from "./Differ";
+import { loadState } from "./BackupState";
+import { emptyState } from "./Differ";
 import { LockManager, type LockOptions } from "./LockManager";
-import { createManifest, saveManifest } from "./Manifest";
 import { guardStore } from "./NonDestructiveGuard";
-import { packPart } from "./Packer";
-import { partName } from "./Splitter";
+import { RunControl } from "./RunControl";
+import type { RunOptions, RunResult } from "./RunTypes";
+
+export type { RunOptions, RunProgress, RunResult } from "./RunTypes";
 
 export interface EngineDeps {
   store: IVaultStore;
@@ -42,30 +34,15 @@ export interface EngineDeps {
   lockOptions?: Partial<LockOptions>;
 }
 
-export interface RunOptions {
-  mode: BackupType;
-  /**
-   * Only add backups: existing backup folders are write-protected for this run and
-   * retention must not run afterwards.
-   */
-  nonDestructive?: boolean;
-}
-
-export interface RunResult {
-  status: "completed";
-  backupId: string;
-  type: BackupType;
-  fileCount: number;
-  bytes: number;
-  skippedFiles: string[];
-  /** Set when a differential was requested but a full backup was made instead. */
-  forcedFullReason?: string;
-  nonDestructive: boolean;
-}
-
 export class BackupEngine {
   constructor(private readonly deps: EngineDeps) {}
 
+  /**
+   * Run one backup. Resolves with the result, or throws: CancelledError when cancelled,
+   * LockError when another run is active, anything else on failure. Whatever the outcome,
+   * a half-made backup folder is removed, the lock is released, and previous backups,
+   * the index and the state are left as they were.
+   */
   async run(options: RunOptions): Promise<RunResult> {
     const { logger, clock } = this.deps;
     const profile = this.deps.getProfile();
@@ -73,6 +50,7 @@ export class BackupEngine {
     const store = options.nonDestructive
       ? guardStore(this.deps.store, backupFolder, await this.existingBackupFolders(backupFolder))
       : this.deps.store;
+    const control = new RunControl(options.onProgress, options.isCancelled);
 
     const lock = new LockManager(store, backupFolder, clock, {
       timeoutMin: profile.safety.lockTimeoutMin,
@@ -83,6 +61,8 @@ export class BackupEngine {
 
     let createdFolder: string | null = null;
     try {
+      control.update({ phase: "scanning" });
+      control.assertNotCancelled();
       const index = await loadIndex(store, backupFolder);
       const state = await this.loadStateOrNull(backupFolder);
       const { plan } = await planBackup({
@@ -94,140 +74,50 @@ export class BackupEngine {
         state,
         yieldIfNeeded: this.deps.yieldIfNeeded,
       });
-      logger.info(`Backup ${plan.id}: ${plan.type}, ${plan.parts.flat().length} files`);
-      if (plan.forcedFullReason) {
-        logger.warn(`Differential backup became a full backup: ${plan.forcedFullReason}`);
-      }
+      control.assertNotCancelled();
+      this.announce(plan);
+      control.update({
+        partCount: plan.parts.length,
+        filesTotal: plan.parts.flat().length,
+        bytesTotal: plan.totalBytes,
+      });
 
       createdFolder = `${backupFolder}/${plan.folder}`;
-      const result = await this.execute(
-        plan,
-        profile,
-        lock,
-        index,
-        options,
-        state ?? emptyState(0, SCHEMA_VERSION.state),
+      const ctx: ExecContext = {
         store,
-      );
+        profile,
+        plan,
+        lock,
+        control,
+        clock,
+        platform: this.deps.platform,
+        pluginVersion: this.deps.pluginVersion,
+        index,
+        previousState: state ?? emptyState(0, SCHEMA_VERSION.state),
+        keys: await this.keysFor(plan),
+        yieldIfNeeded: this.deps.yieldIfNeeded ?? createYielder(),
+        nonDestructive: options.nonDestructive === true,
+      };
+      const result = await executePlan(ctx);
       logger.info(`Backup ${plan.id} completed (${result.bytes} bytes)`);
       return result;
     } catch (error) {
       if (createdFolder && (await store.exists(createdFolder))) {
         await store.removeFolder(createdFolder).catch(() => undefined);
       }
-      logger.error(`Backup failed: ${error instanceof Error ? error.message : String(error)}`);
+      if (error instanceof CancelledError) logger.info("Backup cancelled");
+      else logger.error(`Backup failed: ${error instanceof Error ? error.message : String(error)}`);
       throw error;
     } finally {
       await lock.release();
     }
   }
 
-  private async execute(
-    plan: RunPlan,
-    profile: SettingsProfile,
-    lock: LockManager,
-    index: BackupIndex,
-    options: RunOptions,
-    previousState: BackupState,
-    store: IVaultStore,
-  ): Promise<RunResult> {
-    const backupFolder = profile.destination.backupFolder;
-    const folderPath = `${backupFolder}/${plan.folder}`;
-    const yieldIfNeeded = this.deps.yieldIfNeeded ?? createYielder();
-
-    const keys = await this.keysFor(plan);
-    await store.mkdir(folderPath);
-
-    const parts: ManifestPart[] = [];
-    const entries: ManifestEntry[] = [];
-    const packed: HashedFile[] = [];
-    const skippedFiles: string[] = [];
-    let bytes = 0;
-
-    for (const planned of plan.parts) {
-      await lock.refresh();
-      const actions = new Map(planned.map((f) => [f.path, f.action]));
-      const part = await packPart(
-        store,
-        planned,
-        {
-          compressionLevel: profile.zip.compressionLevel,
-          encryptionKey: keys?.encryptionKey,
-          chunkSize: profile.misc.chunkSizeKb * 1024,
-        },
-        yieldIfNeeded,
-      );
-      skippedFiles.push(...part.skipped);
-      if (part.entries.length === 0) continue;
-
-      const name = partName(parts.length + 1);
-      await writeAtomic(store, `${folderPath}/${name}`, part.data);
-      parts.push({
-        name,
-        size: part.data.length,
-        sha256: part.sha256,
-        entryCount: part.entries.length,
-      });
-      bytes += part.data.length;
-      for (const e of part.entries) {
-        entries.push({ ...e, part: name, action: actions.get(e.path) ?? "add" });
-        packed.push(e);
-      }
+  private announce(plan: RunPlan): void {
+    this.deps.logger.info(`Backup ${plan.id}: ${plan.type}, ${plan.parts.flat().length} files`);
+    if (plan.forcedFullReason) {
+      this.deps.logger.warn(`Differential backup became a full backup: ${plan.forcedFullReason}`);
     }
-
-    const manifest: Manifest = {
-      ...createManifest({
-        id: plan.id,
-        type: plan.type,
-        baseId: plan.baseId,
-        createdAt: plan.createdAt,
-        pluginVersion: this.deps.pluginVersion,
-        platform: this.deps.platform,
-        encryption: {
-          enabled: plan.encryption.enabled,
-          kdf: ENCRYPTION.kdf,
-          iterations: plan.encryption.iterations,
-          salt: plan.encryption.salt,
-          algo: ENCRYPTION.algo,
-        },
-      }),
-      parts,
-      entries,
-      tombstones: plan.tombstones,
-      status: "ok",
-    };
-    if (keys) manifest.hmac = await signManifest(manifest, keys.hmacKey);
-
-    // Manifest last: a backup folder without one is an unfinished backup.
-    await saveManifest(store, folderPath, manifest);
-    await saveIndex(
-      store,
-      backupFolder,
-      addBackup(index, entryFromManifest(manifest, plan.folder, bytes)),
-    );
-
-    const now = this.deps.clock.now();
-    const next =
-      plan.type === "full"
-        ? stateFromHashed(packed, now, previousState.schemaVersion)
-        : applyDiffToState(
-            previousState,
-            { added: [], changed: [], touched: plan.touched, deleted: plan.deleted, unchanged: 0 },
-            packed,
-            now,
-          );
-    await saveState(store, backupFolder, next);
-
-    return {
-      status: "completed",
-      backupId: plan.id,
-      type: plan.type,
-      fileCount: entries.length,
-      bytes,
-      skippedFiles: [...plan.skippedOverMax, ...skippedFiles],
-      forcedFullReason: plan.forcedFullReason,
-      nonDestructive: options.nonDestructive === true,
-    };
   }
 
   private async existingBackupFolders(backupFolder: string): Promise<Set<string>> {
@@ -249,9 +139,7 @@ export class BackupEngine {
     }
   }
 
-  private async keysFor(
-    plan: RunPlan,
-  ): Promise<{ encryptionKey: CryptoKey; hmacKey: Uint8Array } | null> {
+  private async keysFor(plan: RunPlan): Promise<ExecContext["keys"]> {
     if (!plan.encryption.enabled) return null;
     const master = await this.deps.deriveMasterKey(
       fromBase64(plan.encryption.salt),

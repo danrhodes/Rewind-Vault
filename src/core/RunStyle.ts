@@ -1,5 +1,5 @@
 import type { BackupStyle } from "../types";
-import type { RunOptions } from "./BackupEngine";
+import type { RunOptions } from "./RunTypes";
 
 /**
  * Turn the "automatic backup style" setting into engine options. `off` means no

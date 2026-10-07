@@ -4,7 +4,7 @@ import { guardStore } from "../../src/core/NonDestructiveGuard";
 import { runOptionsForStyle } from "../../src/core/RunStyle";
 import { StorageError } from "../../src/helpers/errors";
 import type { IVaultStore } from "../../src/storage/VaultStore";
-import { enc, rig, seedVault, type Rig } from "../support/engineRig";
+import { enc, rig, seedVault, type Rig, runOk } from "../support/engineRig";
 import { idsOf, reconstruct } from "../support/chain";
 import { MockVaultStore } from "../mocks/MockVaultStore";
 
@@ -76,7 +76,7 @@ describe("non-destructive engine runs", () => {
   it("a full chain of runs never touches an earlier backup folder", async () => {
     const r = rig();
     await seedVault(r.store, 20);
-    await r.engine.run({ mode: "full", nonDestructive: true });
+    await runOk(r.engine, { mode: "full", nonDestructive: true });
 
     for (let round = 1; round <= 3; round++) {
       r.clock.advance(1000);
@@ -84,7 +84,7 @@ describe("non-destructive engine runs", () => {
       r.clock.advance(1000);
       const existing = (await r.store.list("backup")).folders;
       const { ops } = record(r);
-      await r.engine.run({ mode: "diff", nonDestructive: true });
+      await runOk(r.engine, { mode: "diff", nonDestructive: true });
       for (const op of ops) {
         for (const folder of existing)
           expect(op, `${op} touched ${folder}`).not.toContain(`${folder}/`);
@@ -99,7 +99,7 @@ describe("non-destructive engine runs", () => {
   it("a failed run removes only its own new folder and leaves older backups intact", async () => {
     const r = rig((p) => void (p.zip.maxFilesPerZip = 5));
     await seedVault(r.store, 20);
-    await r.engine.run({ mode: "full", nonDestructive: true });
+    await runOk(r.engine, { mode: "full", nonDestructive: true });
     const before = await reconstruct(r.store, "backup", idsOf(await loadIndex(r.store, "backup")));
 
     r.clock.advance(1000);
@@ -120,8 +120,10 @@ describe("non-destructive engine runs", () => {
   it("is reported in the result", async () => {
     const r = rig();
     await r.store.seed("a.md", "1");
-    expect((await r.engine.run({ mode: "full", nonDestructive: true })).nonDestructive).toBe(true);
-    expect((await r.engine.run({ mode: "full" })).nonDestructive).toBe(false);
+    expect((await runOk(r.engine, { mode: "full", nonDestructive: true })).nonDestructive).toBe(
+      true,
+    );
+    expect((await runOk(r.engine, { mode: "full" })).nonDestructive).toBe(false);
   });
 });
 

@@ -50,6 +50,7 @@ export async function packPart(
   options: PackOptions,
   yieldIfNeeded: () => Promise<void> = createYielder(),
   isCancelled: () => boolean = () => false,
+  onFile: (file: FileInfo) => void = () => undefined,
 ): Promise<PackedPart> {
   const level = checkLevel(options.compressionLevel);
   const chunks: Uint8Array[] = [];
@@ -73,6 +74,7 @@ export async function packPart(
     } catch (cause) {
       if (!(await store.exists(file.path))) {
         skipped.push(file.path);
+        onFile(file);
         continue;
       }
       throw cause;
@@ -102,6 +104,7 @@ export async function packPart(
       mtime: file.mtime,
       sha256: sha256Hex(data),
     });
+    onFile(file);
     await yieldIfNeeded();
   }
 

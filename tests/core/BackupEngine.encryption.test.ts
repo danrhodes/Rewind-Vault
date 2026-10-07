@@ -3,7 +3,7 @@ import { importAesKey } from "../../src/crypto/cipher";
 import { KEY_LABELS, deriveKeyBytes, deriveSubKey } from "../../src/crypto/kdf";
 import { verifyManifestSignature } from "../../src/crypto/sign";
 import { fromBase64 } from "../../src/helpers/bytes";
-import { enc, fastMaster, rig, seedVault } from "../support/engineRig";
+import { enc, fastMaster, rig, seedVault, runOk } from "../support/engineRig";
 import { readBackupFolder } from "../support/readBackup";
 
 describe("BackupEngine encryption", () => {
@@ -13,7 +13,7 @@ describe("BackupEngine encryption", () => {
       p.encryption.kdfIterations = 600_000;
     });
     const originals = await seedVault(store, 30);
-    const result = await engine.run({ mode: "full" });
+    const result = await runOk(engine, { mode: "full" });
     const folder = `backup/${result.backupId}`;
 
     const { manifest } = await readBackupFolder(store, folder, undefined).catch(async () => ({
@@ -51,8 +51,8 @@ describe("BackupEngine encryption", () => {
         deriveKeyBytes("correct horse battery", salt, iterations),
     });
     await store.seed("a.md", "secret");
-    const a = await engine.run({ mode: "full" });
-    const b = await engine.run({ mode: "full" });
+    const a = await runOk(engine, { mode: "full" });
+    const b = await runOk(engine, { mode: "full" });
     const saltOf = async (id: string): Promise<string> =>
       JSON.parse(new TextDecoder().decode(await store.readBinary(`backup/${id}/manifest.json`)))
         .encryption.salt;

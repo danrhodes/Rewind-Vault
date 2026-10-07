@@ -3,7 +3,7 @@ import { loadIndex } from "../../src/core/BackupIndex";
 import { loadState } from "../../src/core/BackupState";
 import { sha256Hex } from "../../src/crypto/hash";
 import { LockError } from "../../src/helpers/errors";
-import { rig, seedVault } from "../support/engineRig";
+import { rig, seedVault, runOk } from "../support/engineRig";
 import { readBackupFolder } from "../support/readBackup";
 
 describe("BackupEngine full mode", () => {
@@ -11,7 +11,7 @@ describe("BackupEngine full mode", () => {
     const { store, engine } = rig();
     const originals = await seedVault(store, 1000);
 
-    const result = await engine.run({ mode: "full" });
+    const result = await runOk(engine, { mode: "full" });
     expect(result).toMatchObject({ status: "completed", type: "full", fileCount: 1000 });
     expect(result.backupId).toBe("2026-10-07T21-24-00_full");
 
@@ -32,7 +32,7 @@ describe("BackupEngine full mode", () => {
   it("registers the backup, records state for every file, and cleans up", async () => {
     const { store, engine } = rig();
     await seedVault(store, 25);
-    const result = await engine.run({ mode: "full" });
+    const result = await runOk(engine, { mode: "full" });
 
     const index = await loadIndex(store, "backup");
     expect(index.backups).toHaveLength(1);
@@ -57,7 +57,7 @@ describe("BackupEngine full mode", () => {
   it("splits into several parts when limits require it, with consistent manifest records", async () => {
     const { store, engine } = rig((p) => void (p.zip.maxFilesPerZip = 100));
     const originals = await seedVault(store, 1000);
-    const result = await engine.run({ mode: "full" });
+    const result = await runOk(engine, { mode: "full" });
     const { manifest, files } = await readBackupFolder(store, `backup/${result.backupId}`);
     expect(manifest.parts).toHaveLength(10);
     expect(manifest.parts.map((p) => p.name)[0]).toBe("part-001.zip");
@@ -73,9 +73,9 @@ describe("BackupEngine full mode", () => {
   it("never backs up its own backup folder, even on a second run", async () => {
     const { store, clock, engine } = rig();
     await seedVault(store, 5);
-    await engine.run({ mode: "full" });
+    await runOk(engine, { mode: "full" });
     clock.advance(60_000);
-    const second = await engine.run({ mode: "full" });
+    const second = await runOk(engine, { mode: "full" });
     expect(second.fileCount).toBe(5);
     const { files } = await readBackupFolder(store, `backup/${second.backupId}`);
     expect([...files.keys()].some((p) => p.startsWith("backup/"))).toBe(false);
@@ -84,15 +84,15 @@ describe("BackupEngine full mode", () => {
   it("two runs in the same second get different folders and both survive", async () => {
     const { store, engine } = rig();
     await seedVault(store, 3);
-    const a = await engine.run({ mode: "full" });
-    const b = await engine.run({ mode: "full" });
+    const a = await runOk(engine, { mode: "full" });
+    const b = await runOk(engine, { mode: "full" });
     expect(a.backupId).not.toBe(b.backupId);
     expect((await loadIndex(store, "backup")).backups).toHaveLength(2);
   });
 
   it("backs up an empty vault as a valid empty full backup", async () => {
     const { store, engine } = rig();
-    const result = await engine.run({ mode: "full" });
+    const result = await runOk(engine, { mode: "full" });
     expect(result).toMatchObject({ fileCount: 0, bytes: 0 });
     const { manifest } = await readBackupFolder(store, `backup/${result.backupId}`);
     expect(manifest.parts).toEqual([]);
@@ -107,7 +107,7 @@ describe("BackupEngine full mode", () => {
     await store.seed("keep.md", "x");
     await store.seed("skip.tmp", "x");
     await store.seed(".obsidian/app.json", "{}");
-    const result = await engine.run({ mode: "full" });
+    const result = await runOk(engine, { mode: "full" });
     const { files } = await readBackupFolder(store, `backup/${result.backupId}`);
     expect([...files.keys()]).toEqual(["keep.md"]);
   });
@@ -120,7 +120,7 @@ describe("BackupEngine full mode", () => {
     });
     await store.writeBinary("huge.bin", new Uint8Array(1024 * 1024 + 1));
     await store.seed("small.md", "x");
-    const result = await engine.run({ mode: "full" });
+    const result = await runOk(engine, { mode: "full" });
     expect(result.skippedFiles).toEqual(["huge.bin"]);
     expect(result.fileCount).toBe(1);
   });
@@ -130,7 +130,7 @@ describe("BackupEngine failure handling", () => {
   it("a write failure mid-run leaves no folder, no index entry, old state, and no lock", async () => {
     const { store, engine } = rig((p) => void (p.zip.maxFilesPerZip = 5));
     await seedVault(store, 20);
-    const first = await engine.run({ mode: "full" });
+    const first = await runOk(engine, { mode: "full" });
     const stateBefore = JSON.stringify(await loadState(store, "backup"));
 
     let partWrites = 0;

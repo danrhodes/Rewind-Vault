@@ -1,4 +1,5 @@
 import { BackupEngine, type EngineDeps } from "../../src/core/BackupEngine";
+import type { CompletedResult, RunOptions } from "../../src/core/RunTypes";
 import { createDefaultProfile } from "../../src/settings/defaults";
 import type { SettingsProfile } from "../../src/types";
 import { MockClock } from "../mocks/MockClock";
@@ -58,4 +59,12 @@ export async function seedVault(
     originals.set(path, data);
   }
   return originals;
+}
+
+/** Run a backup that is expected to complete, narrowing the result type. */
+export async function runOk(engine: BackupEngine, options: RunOptions): Promise<CompletedResult> {
+  const result = await engine.run(options);
+  if (result.status !== "completed")
+    throw new Error(`expected a completed backup, got ${result.status}`);
+  return result;
 }
