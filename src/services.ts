@@ -1,1 +1,63 @@
-export {};
+import { FILE_NAMES } from "./constants";
+import type { ILogger } from "./helpers/logger";
+import { Logger, RotatingFileSink } from "./helpers/logger";
+import type { IPlatform } from "./helpers/platform";
+import { systemClock, type IClock } from "./helpers/time";
+import { resolveProfileFor } from "./settings/profiles";
+import type { IVaultStore } from "./storage/VaultStore";
+import type { Settings, SettingsProfile } from "./types";
+
+/**
+ * The object UI, commands and triggers receive. Engines never reach for globals:
+ * everything they need is passed in from here (PLAN section 3).
+ */
+export interface Services {
+  readonly store: IVaultStore;
+  readonly logger: ILogger;
+  readonly clock: IClock;
+  readonly platform: IPlatform;
+  /** Raw settings for both profiles. Edited by the settings tab. */
+  readonly settings: Settings;
+  /** Effective settings for this platform. Re-read after settings change. */
+  getProfile(): SettingsProfile;
+  saveSettings(): Promise<void>;
+}
+
+export interface ServiceDeps {
+  settings: Settings;
+  store: IVaultStore;
+  platform: IPlatform;
+  saveSettings: () => Promise<void>;
+  clock?: IClock;
+  /** Supply to replace the default file logger (tests). */
+  logger?: ILogger;
+}
+
+export function createServices(deps: ServiceDeps): Services {
+  const clock = deps.clock ?? systemClock;
+  const { settings, store, platform } = deps;
+
+  const logger = deps.logger ?? createFileLogger(deps, clock);
+
+  return {
+    store,
+    logger,
+    clock,
+    platform,
+    settings,
+    getProfile: () => resolveProfileFor(settings, platform),
+    saveSettings: deps.saveSettings,
+  };
+}
+
+function createFileLogger(deps: ServiceDeps, clock: IClock): Logger {
+  const profile = resolveProfileFor(deps.settings, deps.platform);
+  const folder = profile.destination.backupFolder;
+  const sink = new RotatingFileSink(
+    deps.store,
+    `${folder}/${FILE_NAMES.log}`,
+    profile.notifications.logSizeCapKb * 1024,
+  );
+  const level = profile.notifications.level === "verbose" ? "debug" : "info";
+  return new Logger(sink, level, () => clock.now());
+}

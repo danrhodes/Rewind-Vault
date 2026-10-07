@@ -34,7 +34,7 @@ Priority: P1 now · P2 schedule · P3 delegate/later · P4 defer.
 - [x] T-021 [P1] `settings/defaults.ts` full defaults, desktop + mobile profiles | T-010 | typed against Settings
 - [x] T-022 [P1] `settings/profiles.ts` resolveProfile(platform) | T-021,T-017 | tests
 - [x] T-023 [P1] `settings/migrate.ts` | T-021 | old → new fixture tests
-- [ ] T-024 [P1] `services.ts` DI container | T-018,T-013 | main wires it
+- [x] T-024 [P1] `services.ts` DI container | T-018,T-013 | main wires it
 
 ## Phase 2 — Crypto
 - [ ] T-030 [P1] `crypto/hash.ts` streaming SHA-256 | T-016 | known-vector tests
@@ -162,6 +162,7 @@ _None._
 ## Manual Test Queue
 _Items needing a real Obsidian runtime or device. Format: `MT-n | device | what to test | linked task | result`._
 MT-1 | GitHub | Push branch, confirm the CI workflow (typecheck, lint, test, build) runs green | T-005 | pending
+MT-2 | Obsidian desktop + mobile | Copy manifest.json + main.js into a test vault, enable the plugin: it loads without error, and backup/log.txt receives "Rewind Vault loaded" (checks AdapterVaultStore against the real DataAdapter) | T-024 | pending
 
 ## Ideas Parking Lot
 _Out-of-plan ideas. Do not build until promoted to a task._
@@ -185,3 +186,4 @@ _Format: `YYYY-MM-DD | tasks touched | tests added | decisions | blockers | next
 - 2026-10-07 | T-021 done | tests/settings/defaults.test.ts (4) | Defaults: differential auto-style, startup+resume triggers on, interval on for desktop only, verify L2, keep last 10, mass-change guard on, encryption off. Mobile: 1000 files/50 MB zips, 256 KB chunks, 20% battery floor, no status bar. NOTE: Basic.includeHidden and Exclusions.excludeHidden overlap (both from PLAN section 7); Scanner (T-040) must define precedence: hidden files are included only if includeHidden && !excludeHidden. | — | T-022
 - 2026-10-07 | T-022 done | tests/settings/profiles.test.ts (5) | resolveProfile returns a deep copy and forces desktop-only options off on mobile (external destination, on-close trigger, status bar). Session total: T-017, T-018, T-019, T-021, T-022; 77 tests passing. | — | T-023 (T-020 is P2, deferred until P1s in phase 1 are done)
 - 2026-10-07 | T-023 done | tests/settings/migrate.test.ts (7) | migrateSettings: merge-over-defaults (unknown keys dropped, wrong types fall back), range clamps, KDF iterations floored at 600k, v0 (flat profile) -> v1 (desktop/mobile) step. v0 shape is my reconstruction of a pre-profile layout; no released version ever wrote it. | — | T-024
+- 2026-10-07 | T-024 done | tests/services.test.ts (4) | Services = store, logger, clock, platform, settings, getProfile(), saveSettings(). main.ts now loads+migrates settings and builds services (lifecycle only). Default logger writes to <backupFolder>/log.txt, level debug only when notifications.level is verbose. Real-runtime load check queued as MT-2. | — | T-020
