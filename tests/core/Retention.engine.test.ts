@@ -115,7 +115,7 @@ describe("retention inside the backup engine", () => {
     const first = await backup(r);
     const original = r.store.removeFolder.bind(r.store);
     r.store.removeFolder = async (path: string) => {
-      if (path.endsWith(first.backupId)) throw new StorageError(path, "remove folder", "denied");
+      if (path.endsWith(first.backupId)) throw new StorageError(path, "Cannot remove folder");
       return original(path);
     };
     const second = await backup(r);
