@@ -1,7 +1,7 @@
 import { ENCRYPTION, FILE_NAMES, SCHEMA_VERSION } from "../constants";
 import { ManifestError } from "../helpers/errors";
 import { FieldValidator, isHex64, isSafeRelPath, type Obj } from "../helpers/validate";
-import { writeAtomicText } from "../storage/AtomicWriter";
+import { recoverAtomic, writeAtomicText } from "../storage/AtomicWriter";
 import { readText, type IVaultStore } from "../storage/VaultStore";
 import type {
   BackupStatus,
@@ -223,6 +223,9 @@ export async function loadManifest(store: IVaultStore, backupFolder: string): Pr
   const path = manifestPath(backupFolder);
   let text: string;
   try {
+    // A crash while the manifest was being rewritten (verification records its result there)
+    // can leave it missing next to a .bak: repair that first, as for index.json and state.json.
+    await recoverAtomic(store, path);
     text = await readText(store, path);
   } catch (cause) {
     throw new ManifestError(`Cannot read manifest at ${path}`, { cause });

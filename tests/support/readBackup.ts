@@ -1,6 +1,7 @@
 import { inflateSync, unzipSync } from "fflate";
 import { decrypt } from "../../src/crypto/cipher";
 import { parseManifest } from "../../src/core/Manifest";
+import { recoverAtomic } from "../../src/storage/AtomicWriter";
 import { readText, type IVaultStore } from "../../src/storage/VaultStore";
 import type { Manifest } from "../../src/types";
 
@@ -19,6 +20,9 @@ export async function readBackupFolder(
   folderPath: string,
   key?: CryptoKey,
 ): Promise<BackupContents> {
+  // Startup repair a real consumer gets from loadManifest: a kill while the manifest was
+  // being rewritten can leave it missing next to a .bak.
+  await recoverAtomic(store, `${folderPath}/manifest.json`);
   const manifest = parseManifest(await readText(store, `${folderPath}/manifest.json`));
   const files = new Map<string, Uint8Array>();
   for (const part of manifest.parts) {

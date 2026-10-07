@@ -1,6 +1,6 @@
-import type { BackupType } from "../types";
+import type { BackupType, VerifyReport } from "../types";
 
-export type RunPhase = "scanning" | "packing" | "finalizing";
+export type RunPhase = "scanning" | "packing" | "finalizing" | "verifying";
 
 /** Snapshot sent to `onProgress`. Totals are known once scanning has finished. */
 export interface RunProgress {
@@ -39,6 +39,8 @@ export interface CompletedResult {
   /** Set when a differential was requested but a full backup was made instead. */
   forcedFullReason?: string;
   nonDestructive: boolean;
+  /** Result of the automatic check run after the backup; absent when verification is off. */
+  verification?: VerifyReport;
 }
 
 export interface SkippedResult {

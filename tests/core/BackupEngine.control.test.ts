@@ -30,7 +30,9 @@ describe("progress reporting", () => {
     expect(events[0]!.phase).toBe("scanning");
     const phases = events.map((e) => e.phase);
     expect(phases.indexOf("packing")).toBeGreaterThan(phases.indexOf("scanning"));
-    expect(phases.lastIndexOf("finalizing")).toBe(phases.length - 1);
+    // Auto-verify (default L2) runs after finalizing and is the last phase.
+    expect(phases.lastIndexOf("verifying")).toBe(phases.length - 1);
+    expect(phases.lastIndexOf("finalizing")).toBeLessThan(phases.indexOf("verifying"));
 
     const packing = events.filter((e) => e.phase === "packing");
     expect(packing.every((e) => e.filesTotal === 10 && e.partCount === 3)).toBe(true);

@@ -13,6 +13,7 @@ import { findBackup, loadIndex } from "./BackupIndex";
 import { loadCheckpoint } from "./Checkpoint";
 import { executePlan, skipUnchanged, type ExecContext } from "./BackupExecutor";
 import { planBackup, type RunPlan } from "./BackupPlanner";
+import { autoVerifyBackup } from "./AutoVerify";
 import { loadState } from "./BackupState";
 import { emptyState } from "./Differ";
 import { LockManager, type LockOptions } from "./LockManager";
@@ -169,7 +170,21 @@ export class BackupEngine {
       };
       const result = await executePlan(ctx);
       logger.info(`Backup ${plan.id} completed (${result.bytes} bytes)`);
-      return result;
+      control.update({ phase: "verifying" });
+      const verification = await autoVerifyBackup(
+        {
+          store,
+          logger,
+          clock,
+          profile,
+          deriveMasterKey: this.deps.deriveMasterKey,
+          yieldIfNeeded: this.deps.yieldIfNeeded,
+          onPart: () => lock.refresh(),
+        },
+        plan.id,
+        createdFolder,
+      );
+      return verification ? { ...result, verification } : result;
     } catch (error) {
       await cleanUpFailedRun(store, backupFolder, createdFolder);
       if (error instanceof CancelledError) logger.info("Backup cancelled");
