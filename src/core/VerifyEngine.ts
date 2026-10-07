@@ -8,6 +8,7 @@ import { findBackup, loadIndex } from "./BackupIndex";
 import { loadManifest } from "./Manifest";
 import type { MasterKeyFn } from "./RestoreReader";
 import { checkPartContent } from "./VerifyContent";
+import { checkChain } from "./VerifyChain";
 import { prepareKeys } from "./VerifyKeys";
 import { checkEntryParts, checkPartStructure } from "./VerifyStructure";
 
@@ -34,8 +35,8 @@ export interface VerifyOptions {
   isCancelled?: () => boolean;
 }
 
-/** Highest level this engine can run so far (1 structure, 2 CRC, 3 SHA-256, 4 decrypt + signature). */
-const MAX_LEVEL: VerifyLevel = 4;
+/** Highest level this engine can run so far (1 structure, 2 CRC, 3 SHA-256, 4 decrypt + signature, 5 chain). */
+const MAX_LEVEL: VerifyLevel = 5;
 
 /**
  * Checks that a backup can be trusted. Levels are cumulative: asking for level N runs every
@@ -54,7 +55,8 @@ export class VerifyEngine {
     const backupFolder = this.deps.getProfile().destination.backupFolder;
     const isCancelled = options.isCancelled ?? ((): boolean => false);
 
-    const backup = findBackup(await loadIndex(store, backupFolder), backupId);
+    const index = await loadIndex(store, backupFolder);
+    const backup = findBackup(index, backupId);
     if (!backup) throw new VerificationError(`Backup "${backupId}" is not in the backup index`);
 
     const issues: VerifyIssue[] = [];
@@ -107,6 +109,17 @@ export class VerifyEngine {
             issues,
           );
         }
+      }
+    }
+    if (options.level >= 5) {
+      const chain = await checkChain(store, backupFolder, index, backup);
+      issues.push(...chain.issues);
+      // Every backup this one depends on must itself be intact; a quick integrity pass each.
+      for (const dep of chain.dependencies) {
+        const sub = await this.verify(dep.id, { level: 2, isCancelled: options.isCancelled });
+        for (const issue of sub.issues)
+          issues.push({ ...issue, backupId: issue.backupId ?? dep.id });
+        entriesChecked += sub.entriesChecked;
       }
     }
     if (isCancelled()) throw new CancelledError("Verification cancelled");

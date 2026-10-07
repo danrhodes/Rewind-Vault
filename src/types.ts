@@ -118,6 +118,8 @@ export interface BackupIndex {
 // ---- Verification ----
 
 export interface VerifyIssue {
+  /** Set when the issue concerns another backup than the one verified (chain check). */
+  backupId?: string;
   path?: string;
   part?: string;
   message: string;
