@@ -1,4 +1,4 @@
-import { ENCRYPTION } from "../constants";
+import { ENCRYPTION, SCHEMA_VERSION } from "../constants";
 import { signManifest } from "../crypto/sign";
 import type { IClock } from "../helpers/time";
 import { writeAtomic } from "../storage/AtomicWriter";
@@ -15,6 +15,7 @@ import type {
 import { addBackup, entryFromManifest, saveIndex } from "./BackupIndex";
 import type { RunPlan } from "./BackupPlanner";
 import { saveState } from "./BackupState";
+import { clearCheckpoint, saveCheckpoint, type CheckpointData } from "./Checkpoint";
 import { applyDiffToState, stateFromHashed, type HashedFile } from "./Differ";
 import type { LockManager } from "./LockManager";
 import { createManifest, saveManifest } from "./Manifest";
@@ -38,6 +39,8 @@ export interface ExecContext {
   keys: { encryptionKey: CryptoKey; hmacKey: Uint8Array } | null;
   yieldIfNeeded: () => Promise<void>;
   nonDestructive: boolean;
+  /** Continue an interrupted run: its finished parts are kept and not packed again. */
+  resume?: CheckpointData;
 }
 
 /**
@@ -51,13 +54,36 @@ export async function executePlan(ctx: ExecContext): Promise<CompletedResult> {
   const folderPath = `${backupFolder}/${plan.folder}`;
   await store.mkdir(folderPath);
 
-  const parts: ManifestPart[] = [];
-  const entries: ManifestEntry[] = [];
-  const packed: HashedFile[] = [];
-  const skippedFiles: string[] = [];
-  let bytes = 0;
+  const parts: ManifestPart[] = [...(ctx.resume?.parts ?? [])];
+  const entries: ManifestEntry[] = [...(ctx.resume?.entries ?? [])];
+  const packed: HashedFile[] = entries.map(({ path, size, mtime, sha256 }) => ({
+    path,
+    size,
+    mtime,
+    sha256,
+  }));
+  const skippedFiles: string[] = [...(ctx.resume?.skippedFiles ?? [])];
+  let bytes = ctx.resume?.bytes ?? 0;
+  const startAt = ctx.resume?.nextPartIndex ?? 0;
+
+  const checkpoint = (nextPartIndex: number): Promise<void> =>
+    saveCheckpoint(store, backupFolder, {
+      schemaVersion: SCHEMA_VERSION.checkpoint,
+      plan,
+      nextPartIndex,
+      parts,
+      entries,
+      skippedFiles,
+      bytes,
+      savedAt: ctx.clock.now(),
+    });
+  if (startAt === 0) await checkpoint(0);
+
+  // Progress counters start from what a resumed run has already done.
+  for (const done of plan.parts.slice(0, startAt).flat()) control.fileDone(done.path, done.size);
 
   for (const [i, planned] of plan.parts.entries()) {
+    if (i < startAt) continue;
     control.assertNotCancelled();
     await ctx.lock.refresh();
     control.update({ phase: "packing", partIndex: i + 1 });
@@ -76,7 +102,10 @@ export async function executePlan(ctx: ExecContext): Promise<CompletedResult> {
       (file) => control.fileDone(file.path, file.size),
     );
     skippedFiles.push(...part.skipped);
-    if (part.entries.length === 0) continue;
+    if (part.entries.length === 0) {
+      await checkpoint(i + 1);
+      continue;
+    }
 
     const name = partName(parts.length + 1);
     await writeAtomic(store, `${folderPath}/${name}`, part.data);
@@ -91,6 +120,7 @@ export async function executePlan(ctx: ExecContext): Promise<CompletedResult> {
       entries.push({ ...e, part: name, action: actions.get(e.path) ?? "add" });
       packed.push(e);
     }
+    await checkpoint(i + 1);
   }
 
   control.assertNotCancelled();
@@ -144,6 +174,7 @@ export async function executePlan(ctx: ExecContext): Promise<CompletedResult> {
     await saveIndex(store, backupFolder, ctx.index).catch(() => undefined);
     throw error;
   }
+  await clearCheckpoint(store, backupFolder);
 
   return {
     status: "completed",
