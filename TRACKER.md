@@ -7,8 +7,8 @@ Priority: P1 now · P2 schedule · P3 delegate/later · P4 defer.
 ## Status
 - Current phase: 0
 - Last session: 2026-10-07
-- Next task: T-004
-- Tasks done: 3 / 118
+- Next task: T-005
+- Tasks done: 4 / 118
 
 ---
 
@@ -16,7 +16,7 @@ Priority: P1 now · P2 schedule · P3 delegate/later · P4 defer.
 - [x] T-001 [P1] Init repo, `package.json`, tsconfig strict, esbuild, vitest, eslint, prettier | — | all 4 scripts run green on empty project
 - [x] T-002 [P1] `manifest.json` (id `rewind-vault`, name "Rewind Vault", `isDesktopOnly:false`), `versions.json`, `main.ts` stub that loads/unloads | T-001 | builds `main.js`; id has no "obsidian"
 - [x] T-003 [P1] Folder skeleton per PLAN §4 with empty index files | T-001 | structure matches plan
-- [ ] T-004 [P1] Mock layer: `MockVaultStore`, `MockClock`, `MockLogger` in `tests/mocks` | T-003 | used by one passing sample test
+- [x] T-004 [P1] Mock layer: `MockVaultStore`, `MockClock`, `MockLogger` in `tests/mocks` | T-003 | used by one passing sample test
 - [ ] T-005 [P2] CI workflow: typecheck, lint, test, build | T-001 | green on push
 
 ## Phase 1 — Foundations
@@ -170,3 +170,4 @@ _Format: `YYYY-MM-DD | tasks touched | tests added | decisions | blockers | next
 - 2026-10-07 | T-001 done | none (vitest runs with --passWithNoTests; first test lands in T-004) | Placeholder src/main.ts so typecheck/build have an entry; T-002 replaces it. Prettier ignores *.md so spec files stay untouched. | — | T-002
 - 2026-10-07 | T-002 done | none (stub has no logic; build verified to emit CJS with default Plugin export) | Added `obsidian` as devDependency (types only, external in bundle). | — | T-003
 - 2026-10-07 | T-003 done | none (stubs only) | Skeleton = every file named in PLAN §4 as `export {};` (52 src files, 3 mocks) plus .gitkeep in tests subfolders. | — | T-004
+- 2026-10-07 | T-004 done | tests/mocks/mocks.test.ts (2 tests) | Mocks are structural (no interfaces yet): IVaultStore/ILogger/IClock do not exist until T-018/T-013/T-014, which should extract interfaces from these shapes. MockVaultStore has exists/readBinary/writeBinary/stat/mkdir/list/remove/rename + seed helper. | — | T-005
