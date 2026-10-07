@@ -5,10 +5,10 @@ Format: `T-ID [Pn] description | deps | acceptance`
 Priority: P1 now · P2 schedule · P3 delegate/later · P4 defer.
 
 ## Status
-- Current phase: 6
+- Current phase: 7
 - Last session: 2026-10-07
-- Next task: T-086 (T-005 awaiting MT-1)
-- Tasks done: 63 / 118
+- Next task: T-090 (T-005 awaiting MT-1)
+- Tasks done: 64 / 118
 
 ---
 
@@ -89,7 +89,7 @@ Priority: P1 now · P2 schedule · P3 delegate/later · P4 defer.
 - [x] T-083 [P1] `ResumeTrigger` visibilitychange, min-gap setting | T-047 | tests
 - [x] T-084 [P2] `EventTrigger` N edits, idle N min, create/delete/rename | T-047 | debounce tests
 - [x] T-085 [P2] `CloseTrigger` desktop best effort | T-047 | manual queue
-- [ ] T-086 [P2] Trigger de-duplication (no overlapping runs, cooldown) | T-045 | tests
+- [x] T-086 [P2] Trigger de-duplication (no overlapping runs, cooldown) | T-045 | tests
 
 ## Phase 7 — Retention
 - [ ] T-090 [P1] `Retention` keep-last-N | T-046 | never prune last verified-ok
@@ -236,3 +236,4 @@ _Format: `YYYY-MM-DD | tasks touched | tests added | decisions | blockers | next
 - 2026-10-07 | T-083 done | tests/triggers/ResumeTrigger.test.ts (11: fires on return to foreground after hidden, not for events that did not start hidden or when hiding, starting hidden counts the first return, minimum gap respected then released, zero gap, gap also counts another trigger's backup (lastBackupAt), failing lastBackupAt falls back to own record, option off and picked up live, no overlapping runs, failing run logged and later resumes work, stop/start do not double-subscribe) | New triggers/ResumeTrigger.ts over IPlatform.onVisibilityChange. Gap = now - max(last backup time (optional host callback ResumeOptions.lastBackupAt, e.g. newest index createdAt), own last firing) vs triggers.resumeMinGapMin; only a hidden->visible transition counts (so startup-visible is the startup trigger's job). Settings read live. MockClock + MockPlatform, no real timers. T-152 (resume-from-checkpoint on app resume) builds on this. | — | T-084
 - 2026-10-07 | T-084 done | tests/triggers/EventTrigger.test.ts (16: N edits fire and reset, autosave burst counts once per window, off when disabled, live threshold; idle fires after quiet minutes and restarts on activity, not without changes, another trigger's backup resets it; create/delete/rename each with its own reason after the debounce, bulk of 200 creates = one backup, mixed burst reports first kind and ignores kinds that are off; ignores backup folder, restore folder and excluded paths, no overlapping runs with changes during a run counting toward the next, failing run logged, stop() cleans everything and start() twice does not double up) | New triggers/EventTrigger.ts over a host-supplied VaultEvents {on(kind, cb) -> unsubscribe} (main wires app.vault.on modify/create/delete/rename; rename reports the new path). Debounce EVENT_DEBOUNCE_MS = 10 s (each event restarts it), edits coalesced per file per EDIT_COALESCE_MS = 10 s anchored at the last COUNTED edit (bug found and fixed in testing: a long autosave session was counted once in total). Ignored: backup folder and exclusions via createExcludeCheck, plus the restore folder (restores must not trigger backups). Any fire resets counters and timers because one backup covers everything so far. T-136 (words typed) can extend this. All Phase 6 triggers (T-081..T-084) now exist but none is wired into main/services yet. | — | T-085
 - 2026-10-07 | T-085 done | tests/triggers/CloseTrigger.test.ts (6: fires once with reason 'close', repeat signals ignored, option off and picked up live, never subscribes on mobile, failing run logged not thrown, start twice/stop re-arm) | New triggers/CloseTrigger.ts over a host-supplied CloseEvents {onBeforeClose(cb) -> unsubscribe} (main wires window beforeunload). BEST EFFORT: the app does not await async work in a close handler, so the run may be cut off; safe because backups are atomic with the manifest last (next run discards or resumes the leftovers). Desktop only (checked via IPlatform.isDesktop). Whether a real Obsidian quit lets a backup finish is queued as MT-3. Not wired into main yet. | — | T-086
+- 2026-10-07 | T-086 done | tests/triggers/RunGuard.test.ts (10: pass-through, overlap dropped and logged, cooldown boundary, measured from run END, first request never delayed, close bypasses cooldown but not overlap, failure rethrown + frees guard + starts cooldown, LockError logged at info not error, zero cooldown, several triggers at once) | New triggers/RunGuard.ts: one shared guarded RunRequest for every trigger; DEFAULT_COOLDOWN_MS = 30 s as a constant/option, NOT a setting (PLAN section 7 lists none; promote via Ideas if wanted). Manual Backup now bypasses the guard (engine lock still prevents overlap). Wiring (main/services builds RunGuard around conditions + engine and hands .request to all triggers) is still pending, same as the triggers themselves. Phase 6 complete. | — | T-090
