@@ -60,6 +60,29 @@ export interface RestorePreview {
  */
 export type SafetySnapshotFn = () => Promise<{ backupId: string } | null>;
 
+export type RestorePhase = "snapshot" | "writing" | "deleting";
+
+/** Snapshot sent to `onProgress`. Totals are known before the first write. */
+export interface RestoreProgress {
+  phase: RestorePhase;
+  filesDone: number;
+  filesTotal: number;
+  bytesDone: number;
+  bytesTotal: number;
+  currentFile?: string;
+}
+
+/**
+ * Progress reporting and cancellation. `isCancelled` is polled before the snapshot, before
+ * every file and before every deletion; when true the restore stops with CancelledError.
+ * Files already written stay (each one is whole), nothing further is touched.
+ */
+export interface RestoreControl {
+  /** Called often; keep it cheap. Errors thrown by it are ignored. */
+  onProgress?: (progress: RestoreProgress) => void;
+  isCancelled?: () => boolean;
+}
+
 /** What the restore code needs from the engine. */
 export interface RestoreContext {
   store: IVaultStore;

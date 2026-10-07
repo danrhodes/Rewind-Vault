@@ -7,8 +7,8 @@ Priority: P1 now · P2 schedule · P3 delegate/later · P4 defer.
 ## Status
 - Current phase: 4
 - Last session: 2026-10-07
-- Next task: T-067 (T-005 awaiting MT-1)
-- Tasks done: 45 / 118
+- Next task: T-068 (T-005 awaiting MT-1)
+- Tasks done: 46 / 118
 
 ---
 
@@ -67,7 +67,7 @@ Priority: P1 now · P2 schedule · P3 delegate/later · P4 defer.
 - [x] T-064 [P1] Restore folder | T-063 | tests
 - [x] T-065 [P1] Restore whole vault, default to restore folder, explicit overwrite option | T-064 | no overwrite by default
 - [x] T-066 [P1] Automatic pre-restore safety snapshot | T-065,T-047 | snapshot exists before any write
-- [ ] T-067 [P2] Restore progress + cancel | T-065 | tests
+- [x] T-067 [P2] Restore progress + cancel | T-065 | tests
 - [ ] T-068 [P2] Restore specific file version across backups | T-063 | tests
 
 ## Phase 5 — Verification
@@ -215,3 +215,4 @@ _Format: `YYYY-MM-DD | tasks touched | tests added | decisions | blockers | next
 - 2026-10-07 | T-064 done | tests/core/RestoreEngine.folder.test.ts (10: scope and prefix-sibling exclusion, trailing slash, older backup, vault create/unchanged, all-or-nothing conflicts, overwrite, idempotent rerun, multi-part, encrypted) | Refactor to keep files small: RestoreTypes.ts (types, destinationPath, scope helpers), RestorePlan.ts (planRestore = preview + files to write), RestoreBatch.ts (executeRestore: reads each part ONCE via RestoreReader.readFilesFromPart, hash-checks, writeAtomic per file), RestoreEngine.ts now thin (preview, restoreFile, restoreFolder); restoreFile reimplemented on the same plan/execute path (its 21 tests unchanged). Conflicts are decided from the plan BEFORE any write: any differing destination file without overwrite aborts the whole restore. restoreFolder throws if the folder has no files in the backup (preview of an empty folder still returns empty, T-062 contract kept). planRestore now throws if a folder blocks a file path. | — | T-065
 - 2026-10-07 | T-065 done | tests/core/RestoreEngine.vault.test.ts (8: default restore folder leaves live vault untouched, no overwrite by default and nothing written on conflict, overwrite, deleteExtraneous exact match, backup folder and excluded paths never deleted, flag misuse refused, point-in-time over a diff chain of 40 files, idempotent rerun) | restoreVault({source, destination?, overwrite?, deleteExtraneous?}): destination defaults to restore-folder. deleteExtraneous is refused unless destination is vault AND overwrite is set. executeRestore also refuses planned deletions without overwrite (so lower-level callers cannot delete by accident). Deletions use the normal scan exclusions, so backup/, .git, node_modules, trash are never offered. Empty folders left after deletions are not removed (files only). | — | T-066
 - 2026-10-07 | T-066 done | tests/core/RestoreEngine.snapshot.test.ts (10: snapshot exists and holds pre-restore content and runs before the first write, covers restoreFile/Folder/Vault, skipped for restore folder / nothing to change / refused restores, null = up-to-date, failure aborts with nothing written, missing wiring refused, setting off, cancel passes through) | RestoreDeps.safetySnapshot (SafetySnapshotFn: () => {backupId}|null) is called inside executeRestore after all conflict checks and before the first write or delete, only for vault-destination restores that would change something and only when safety.preRestoreSnapshot is on. A failing snapshot aborts (RestoreError with cause); with the setting on and no function wired the restore is REFUSED rather than silently unprotected. Services/commands must wire it to BackupEngine.run({mode:'diff'}) (null when result is skipped/no-changes): until then vault restores need the setting off. RestoreBatchResult.snapshot reports the id or "up-to-date". Settings toggle exists already; its UI is T-103. Test rig's restoreEngineFor wires a real diff-backup snapshot. | — | T-067
+- 2026-10-07 | T-067 done | tests/core/RestoreEngine.control.test.ts (8: phases and totals known up front, monotonic counters, byte totals, throwing listener ignored, cancel before start writes nothing and takes no snapshot, cancel mid-run leaves only whole files and no .tmp/.bak, re-run after cancel completes, cancel during deletions, all three entry points) | restoreFile/restoreFolder/restoreVault take an optional second arg RestoreControl {onProgress(RestoreProgress), isCancelled()}. Phases: snapshot, writing, deleting; filesTotal = files to write + deletions. isCancelled is polled before the snapshot, before each file and before each deletion; cancel throws CancelledError. A cancelled restore is NOT rolled back: files already written stay (each is atomic and hash-verified), which is safe because a vault restore is preceded by the safety snapshot and re-running resumes (unchanged files are skipped). Session total so far: T-063..T-067 done (5 tasks); 515 tests passing. | — | T-068

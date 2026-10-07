@@ -11,13 +11,16 @@ import type { MasterKeyFn } from "./RestoreReader";
 import {
   destinationPath,
   type RestoreContext,
-  RestoreDestination,
-  SafetySnapshotFn,
-  RestorePreview,
-  RestoreRequest,
+  type RestoreControl,
+  type RestoreDestination,
+  type RestorePreview,
+  type RestoreRequest,
+  type SafetySnapshotFn,
 } from "./RestoreTypes";
 
 export type {
+  RestoreControl,
+  RestoreProgress,
   PreviewItem,
   RestoreDestination,
   RestorePreview,
@@ -112,14 +115,17 @@ export class RestoreEngine {
    * written, then written atomically, so a failure never leaves a damaged or half-written
    * file. A differing file at the destination is only replaced with `overwrite`.
    */
-  async restoreFile(request: RestoreFileRequest): Promise<RestoreFileResult> {
+  async restoreFile(
+    request: RestoreFileRequest,
+    control: RestoreControl = {},
+  ): Promise<RestoreFileResult> {
     const ctx = this.context();
     const plan = await planRestore(ctx, {
       source: request.source,
       scope: { kind: "file", path: request.path },
       destination: request.destination,
     });
-    const batch = await executeRestore(ctx, plan, { overwrite: request.overwrite });
+    const batch = await executeRestore(ctx, plan, { overwrite: request.overwrite, ...control });
     const file = plan.chain.files.get(request.path.replace(/\/+$/, "")) as ResolvedFile;
     return {
       writtenTo: destinationPath(batch.destinationRoot, file.path),
@@ -133,7 +139,10 @@ export class RestoreEngine {
    * Restore every file under a folder, keeping relative paths. All-or-nothing on conflicts:
    * if any file would be replaced and `overwrite` is not set, nothing is written.
    */
-  async restoreFolder(request: RestoreFolderRequest): Promise<RestoreBatchResult> {
+  async restoreFolder(
+    request: RestoreFolderRequest,
+    control: RestoreControl = {},
+  ): Promise<RestoreBatchResult> {
     const ctx = this.context();
     const plan = await planRestore(ctx, {
       source: request.source,
@@ -146,7 +155,7 @@ export class RestoreEngine {
         `Folder "${request.path}" has no files in backup ${preview.source.id}`,
       );
     }
-    return executeRestore(ctx, plan, { overwrite: request.overwrite });
+    return executeRestore(ctx, plan, { overwrite: request.overwrite, ...control });
   }
 
   /**
@@ -154,7 +163,10 @@ export class RestoreEngine {
    * unless `destination` is explicitly the vault; nothing is overwritten or deleted without
    * `overwrite`.
    */
-  async restoreVault(request: RestoreVaultRequest): Promise<RestoreBatchResult> {
+  async restoreVault(
+    request: RestoreVaultRequest,
+    control: RestoreControl = {},
+  ): Promise<RestoreBatchResult> {
     const destination = request.destination ?? { kind: "restore-folder" };
     if (request.deleteExtraneous && (destination.kind !== "vault" || !request.overwrite)) {
       throw new RestoreError("deleteExtraneous needs the vault destination and overwrite");
@@ -166,6 +178,6 @@ export class RestoreEngine {
       destination,
       deleteExtraneous: request.deleteExtraneous,
     });
-    return executeRestore(ctx, plan, { overwrite: request.overwrite });
+    return executeRestore(ctx, plan, { overwrite: request.overwrite, ...control });
   }
 }

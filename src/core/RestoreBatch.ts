@@ -1,9 +1,14 @@
-import { RestoreError, RewindError } from "../helpers/errors";
+import { CancelledError, RestoreError, RewindError } from "../helpers/errors";
 import { writeAtomic } from "../storage/AtomicWriter";
 import type { ResolvedFile } from "./ChainResolver";
 import type { RestorePlan } from "./RestorePlan";
 import { readFilesFromPart } from "./RestoreReader";
-import { destinationPath, type RestoreContext } from "./RestoreTypes";
+import {
+  destinationPath,
+  type RestoreContext,
+  type RestoreControl,
+  type RestoreProgress,
+} from "./RestoreTypes";
 
 export interface RestoreBatchResult {
   /** "" for the vault, otherwise the restore folder used. */
@@ -18,7 +23,7 @@ export interface RestoreBatchResult {
   bytesWritten: number;
 }
 
-export interface RestoreBatchOptions {
+export interface RestoreBatchOptions extends RestoreControl {
   /** Replace files whose content differs. Without it, any difference aborts before writing. */
   overwrite?: boolean;
 }
@@ -79,6 +84,25 @@ export async function executeRestore(
       `${preview.deletions.length} file(s) would be deleted; overwrite was not chosen, nothing was written`,
     );
   }
+  const checkCancelled = (): void => {
+    if (options.isCancelled?.() === true) throw new CancelledError("Restore cancelled");
+  };
+  const progress: RestoreProgress = {
+    phase: "writing",
+    filesDone: 0,
+    filesTotal: plan.toWrite.length + preview.deletions.length,
+    bytesDone: 0,
+    bytesTotal: preview.bytesToWrite,
+  };
+  const report = (patch: Partial<RestoreProgress>): void => {
+    Object.assign(progress, patch);
+    try {
+      options.onProgress?.({ ...progress });
+    } catch {
+      // A broken progress listener must never fail a restore.
+    }
+  };
+  checkCancelled();
   const replacing = new Set(preview.changes.map((c) => c.path));
   const result: RestoreBatchResult = {
     destinationRoot: preview.destinationRoot,
@@ -95,7 +119,9 @@ export async function executeRestore(
     plan.toWrite.length + preview.deletions.length > 0 &&
     ctx.profile.safety.preRestoreSnapshot
   ) {
+    report({ phase: "snapshot", currentFile: undefined });
     result.snapshot = await takeSnapshot(ctx);
+    report({ phase: "writing" });
   }
 
   for (const group of groupByPart(plan.toWrite)) {
@@ -106,17 +132,24 @@ export async function executeRestore(
       group,
       ctx.deriveMasterKey,
     )) {
+      checkCancelled();
+      report({ currentFile: file.path });
       await writeAtomic(ctx.store, destinationPath(preview.destinationRoot, file.path), data);
       if (replacing.has(file.path)) result.replaced++;
       else result.created++;
       result.bytesWritten += data.length;
+      report({ filesDone: progress.filesDone + 1, bytesDone: result.bytesWritten });
       await ctx.yieldIfNeeded();
     }
   }
 
+  report({ phase: "deleting" });
   for (const path of preview.deletions) {
+    checkCancelled();
+    report({ currentFile: path });
     await ctx.store.remove(destinationPath(preview.destinationRoot, path));
     result.deleted++;
+    report({ filesDone: progress.filesDone + 1 });
   }
   ctx.logger.info(
     `Restored backup ${result.backupId}: ${result.created} created, ${result.replaced} replaced, ` +
