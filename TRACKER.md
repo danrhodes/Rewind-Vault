@@ -7,7 +7,7 @@ Priority: P1 now · P2 schedule · P3 delegate/later · P4 defer.
 ## Status
 - Current phase: 0
 - Last session: 2026-10-07
-- Next task: T-005
+- Next task: T-010 (T-005 awaiting MT-1)
 - Tasks done: 4 / 118
 
 ---
@@ -17,7 +17,7 @@ Priority: P1 now · P2 schedule · P3 delegate/later · P4 defer.
 - [x] T-002 [P1] `manifest.json` (id `rewind-vault`, name "Rewind Vault", `isDesktopOnly:false`), `versions.json`, `main.ts` stub that loads/unloads | T-001 | builds `main.js`; id has no "obsidian"
 - [x] T-003 [P1] Folder skeleton per PLAN §4 with empty index files | T-001 | structure matches plan
 - [x] T-004 [P1] Mock layer: `MockVaultStore`, `MockClock`, `MockLogger` in `tests/mocks` | T-003 | used by one passing sample test
-- [ ] T-005 [P2] CI workflow: typecheck, lint, test, build | T-001 | green on push
+- [~] T-005 [P2] CI workflow: typecheck, lint, test, build | T-001 | green on push
 
 ## Phase 1 — Foundations
 - [ ] T-010 [P1] `types.ts`: Settings, Manifest, BackupEntry, FileInfo, VerifyReport, BackupIndex | T-003 | compiles, no `any`
@@ -161,6 +161,7 @@ _None._
 
 ## Manual Test Queue
 _Items needing a real Obsidian runtime or device. Format: `MT-n | device | what to test | linked task | result`._
+MT-1 | GitHub | Push branch, confirm the CI workflow (typecheck, lint, test, build) runs green | T-005 | pending
 
 ## Ideas Parking Lot
 _Out-of-plan ideas. Do not build until promoted to a task._
@@ -171,3 +172,4 @@ _Format: `YYYY-MM-DD | tasks touched | tests added | decisions | blockers | next
 - 2026-10-07 | T-002 done | none (stub has no logic; build verified to emit CJS with default Plugin export) | Added `obsidian` as devDependency (types only, external in bundle). | — | T-003
 - 2026-10-07 | T-003 done | none (stubs only) | Skeleton = every file named in PLAN §4 as `export {};` (52 src files, 3 mocks) plus .gitkeep in tests subfolders. | — | T-004
 - 2026-10-07 | T-004 done | tests/mocks/mocks.test.ts (2 tests) | Mocks are structural (no interfaces yet): IVaultStore/ILogger/IClock do not exist until T-018/T-013/T-014, which should extract interfaces from these shapes. MockVaultStore has exists/readBinary/writeBinary/stat/mkdir/list/remove/rename + seed helper. | — | T-005
+- 2026-10-07 | T-005 workflow written, left [~] | none | Local equivalents of all CI steps pass and `npm ci` dry-run works; acceptance is 'green on push', which needs a real push (MT-1). Mark [x] once MT-1 passes. | — | T-010 (next unblocked P1)
