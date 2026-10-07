@@ -30,7 +30,7 @@ Priority: P1 now · P2 schedule · P3 delegate/later · P4 defer.
 - [x] T-017 [P1] `helpers/platform.ts` (isMobile, isDesktop, battery, visibility wrappers) | T-010 | mockable
 - [x] T-018 [P1] `storage/VaultStore.ts` adapter wrapper (read/write binary, list, stat, mkdir, remove, rename) | T-010,T-004 | contract tests run on Mock + real impl shape
 - [x] T-019 [P1] `storage/AtomicWriter.ts` temp → rename | T-018 | fault test: crash mid-write leaves old file intact
-- [ ] T-020 [P2] `storage/FreeSpace.ts` estimate + precheck | T-018 | tests
+- [x] T-020 [P2] `storage/FreeSpace.ts` estimate + precheck | T-018 | tests
 - [x] T-021 [P1] `settings/defaults.ts` full defaults, desktop + mobile profiles | T-010 | typed against Settings
 - [x] T-022 [P1] `settings/profiles.ts` resolveProfile(platform) | T-021,T-017 | tests
 - [x] T-023 [P1] `settings/migrate.ts` | T-021 | old → new fixture tests
@@ -187,3 +187,4 @@ _Format: `YYYY-MM-DD | tasks touched | tests added | decisions | blockers | next
 - 2026-10-07 | T-022 done | tests/settings/profiles.test.ts (5) | resolveProfile returns a deep copy and forces desktop-only options off on mobile (external destination, on-close trigger, status bar). Session total: T-017, T-018, T-019, T-021, T-022; 77 tests passing. | — | T-023 (T-020 is P2, deferred until P1s in phase 1 are done)
 - 2026-10-07 | T-023 done | tests/settings/migrate.test.ts (7) | migrateSettings: merge-over-defaults (unknown keys dropped, wrong types fall back), range clamps, KDF iterations floored at 600k, v0 (flat profile) -> v1 (desktop/mobile) step. v0 shape is my reconstruction of a pre-profile layout; no released version ever wrote it. | — | T-024
 - 2026-10-07 | T-024 done | tests/services.test.ts (4) | Services = store, logger, clock, platform, settings, getProfile(), saveSettings(). main.ts now loads+migrates settings and builds services (lifecycle only). Default logger writes to <backupFolder>/log.txt, level debug only when notifications.level is verbose. Real-runtime load check queued as MT-2. | — | T-020
+- 2026-10-07 | T-020 done | tests/storage/FreeSpace.test.ts (7) | Free space comes from navigator.storage.estimate() (browser quota, a hint not true disk space) and the check PASSES when unknown so backups are never blocked by a missing API. Estimate assumes 60% compression (level>0). minFreeMb reserve is added on top; T-052 wires it into the engine. Phase 1 complete. | — | T-030
