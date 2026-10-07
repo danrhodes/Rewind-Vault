@@ -29,11 +29,16 @@ export type RunRequest = (reason: TriggerReason) => Promise<void>;
 export interface TimerHost {
   setInterval(callback: () => void, ms: number): number;
   clearInterval(handle: number): void;
+  /** One-shot timer, for delays. */
+  setTimeout(callback: () => void, ms: number): number;
+  clearTimeout(handle: number): void;
 }
 
 export const globalTimerHost: TimerHost = {
   setInterval: (callback, ms) => globalThis.setInterval(callback, ms) as unknown as number,
   clearInterval: (handle) => globalThis.clearInterval(handle),
+  setTimeout: (callback, ms) => globalThis.setTimeout(callback, ms) as unknown as number,
+  clearTimeout: (handle) => globalThis.clearTimeout(handle),
 };
 
 export interface TriggerDeps {
