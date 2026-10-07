@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  BackupAdminError,
   CancelledError,
   ConfigError,
   CryptoError,
@@ -27,6 +28,7 @@ describe("errors", () => {
       [new VerificationError("crc"), "VerificationError", "verification"],
       [new CancelledError(), "CancelledError", "cancelled"],
       [new ConfigError("x"), "ConfigError", "config"],
+      [new BackupAdminError("no"), "BackupAdminError", "admin"],
       [new InsufficientSpaceError(10, 5), "InsufficientSpaceError", "insufficient-space"],
     ];
     for (const [err, name, code] of cases) {

@@ -7,6 +7,9 @@ import { createServices, type Services } from "./services";
 import { migrateSettings } from "./settings/migrate";
 import { RewindVaultSettingTab } from "./settings/SettingsTab";
 import { AdapterVaultStore } from "./storage/VaultStore";
+import { loadIndex } from "./core/BackupIndex";
+import { BackupBrowserModal } from "./ui/BackupBrowserModal";
+import { ConfirmModal } from "./ui/ConfirmModal";
 import { createProgressUi } from "./ui/progressHost";
 
 /** Lifecycle only: load settings, build services, register things, clean up. */
@@ -43,8 +46,18 @@ export default class RewindVaultPlugin extends Plugin {
       progress: createProgressUi(this.app),
     });
     const commands = buildCommands(actions, {
-      // Replaced by the backup browser in a later task.
-      openBackupBrowser: () => services.notifier.info("The backup browser is not available yet."),
+      openBackupBrowser: () =>
+        new BackupBrowserModal(this.app, {
+          loadIndex: () =>
+            loadIndex(services.store, services.getProfile().destination.backupFolder),
+          admin: () => services.admin(),
+          verify: (id) => actions.verifyById(id, 3),
+          // The restore dialog arrives in a later task.
+          restore: () => services.notifier.info("The restore dialog is not available yet."),
+          confirm: (title, message, label, dangerous) =>
+            new ConfirmModal(this.app, title, message, label, dangerous).ask(),
+          notifier: services.notifier,
+        }).open(),
     });
     registerCommands(this, commands, services.getProfile, () => actions.backupNow());
 

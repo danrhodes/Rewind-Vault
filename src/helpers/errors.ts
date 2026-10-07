@@ -10,7 +10,8 @@ export type ErrorCode =
   | "config"
   | "insufficient-space"
   | "chain"
-  | "restore";
+  | "restore"
+  | "admin";
 
 export interface ErrorOptions {
   cause?: unknown;
@@ -86,6 +87,13 @@ export class BrokenChainError extends RewindError {
 export class RestoreError extends RewindError {
   constructor(message: string, options: ErrorOptions = {}) {
     super("restore", message, options);
+  }
+}
+
+/** A manual backup management request (delete, pin) that was refused, e.g. it would break a chain. */
+export class BackupAdminError extends RewindError {
+  constructor(message: string, options: ErrorOptions = {}) {
+    super("admin", message, options);
   }
 }
 

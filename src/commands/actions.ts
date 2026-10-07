@@ -83,21 +83,29 @@ export class Actions {
 
   /** Verify the newest backup (any status, so a damaged one can be re-checked). */
   async verifyLatest(level: VerifyLevel): Promise<void> {
+    await this.verifyOne(level, null);
+  }
+
+  /** Verify one chosen backup (from the backup browser). */
+  async verifyById(backupId: string, level: VerifyLevel): Promise<void> {
+    await this.verifyOne(level, backupId);
+  }
+
+  private async verifyOne(level: VerifyLevel, backupId: string | null): Promise<void> {
     const { notifier } = this.deps;
     if (!this.acquire()) return;
     try {
-      const index = await loadIndex(
-        this.deps.store,
-        this.deps.getProfile().destination.backupFolder,
-      );
-      const latest = sortedBackups(index)[0];
-      if (!latest) {
+      let id = backupId;
+      if (id === null) {
+        const folder = this.deps.getProfile().destination.backupFolder;
+        id = sortedBackups(await loadIndex(this.deps.store, folder))[0]?.id ?? null;
+      }
+      if (id === null) {
         notifier.info("There are no backups to verify yet.");
         return;
       }
-      notifier.info(`Verifying ${latest.id}…`);
-      const report = await this.deps.verifyBackup(latest.id, { level });
-      this.reportVerification(report);
+      notifier.info(`Verifying ${id}…`);
+      this.reportVerification(await this.deps.verifyBackup(id, { level }));
     } catch (error) {
       this.reportFailure("Verification", error);
     } finally {

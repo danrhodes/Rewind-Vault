@@ -1,4 +1,5 @@
 import { FILE_NAMES } from "./constants";
+import { BackupAdmin } from "./core/BackupAdmin";
 import { BackupEngine } from "./core/BackupEngine";
 import { RestoreEngine } from "./core/RestoreEngine";
 import { verifyAndRecord } from "./core/VerifyRunner";
@@ -29,6 +30,8 @@ export interface Services {
   readonly settings: Settings;
   readonly backup: BackupEngine;
   readonly restore: RestoreEngine;
+  /** Manual pin/delete of existing backups. A fresh instance, so it always sees current settings. */
+  admin(): BackupAdmin;
   /** Notices honouring the notification level. */
   readonly notifier: Notifier;
   /** Verify an existing backup under the backup lock and record the result (marks corrupt on failure). */
@@ -111,6 +114,17 @@ export function createServices(deps: ServiceDeps): Services {
     settings,
     backup,
     restore,
+    admin: () => {
+      const profile = getProfile();
+      return new BackupAdmin({
+        store,
+        logger,
+        clock,
+        backupFolder: profile.destination.backupFolder,
+        lockTimeoutMin: profile.safety.lockTimeoutMin,
+        platform: platform.kind,
+      });
+    },
     notifier: new Notifier(deps.showNotice ?? (() => undefined), getProfile),
     verifyBackup: (backupId, options) =>
       verifyAndRecord(

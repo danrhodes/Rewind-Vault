@@ -1,78 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
-import { Actions, type ProgressHandle } from "../../src/commands/actions";
 import { loadIndex } from "../../src/core/BackupIndex";
-import { verifyAndRecord } from "../../src/core/VerifyRunner";
 import { InsufficientSpaceError, LockError } from "../../src/helpers/errors";
-import type { RunProgress } from "../../src/core/RunTypes";
-import { Notifier } from "../../src/ui/notify";
-import type { CancelSource } from "../../src/ui/progressModel";
-import type { VerifyReport } from "../../src/types";
-import { enc, fastMaster, rig, type Rig } from "../support/engineRig";
-
-interface Harness {
-  r: Rig;
-  actions: Actions;
-  notices: string[];
-  opened: { title: string; cancel: CancelSource; updates: RunProgress[]; closed: boolean }[];
-  reports: VerifyReport[];
-}
-
-function harness(
-  tweak: (r: Rig) => void = () => undefined,
-  level: "verbose" | "errors" = "verbose",
-) {
-  const r = rig((p) => {
-    p.notifications.level = level;
-  });
-  tweak(r);
-  const notices: string[] = [];
-  const opened: Harness["opened"] = [];
-  const reports: VerifyReport[] = [];
-  const getProfile = () => r.profile;
-  const actions = new Actions({
-    store: r.store,
-    logger: r.logger,
-    backup: r.engine,
-    verifyBackup: (id, options) =>
-      verifyAndRecord(
-        {
-          store: r.store,
-          logger: r.logger,
-          clock: r.clock,
-          getProfile,
-          platform: "desktop",
-          deriveMasterKey: fastMaster,
-          lockOptions: { sleep: async () => undefined },
-        },
-        id,
-        options,
-      ),
-    notifier: new Notifier((m) => notices.push(m), getProfile),
-    getProfile,
-    progress: {
-      open(title, cancel) {
-        const record = { title, cancel, updates: [] as RunProgress[], closed: false };
-        opened.push(record);
-        const handle: ProgressHandle = {
-          updateBackup: (p) => record.updates.push(p),
-          close: () => {
-            record.closed = true;
-          },
-        };
-        return handle;
-      },
-    },
-    results: { showVerifyReport: (rep) => reports.push(rep) },
-  });
-  return { r, actions, notices, opened, reports } as Harness;
-}
-
-async function seed(r: Rig): Promise<void> {
-  await r.store.seed("a.md", "alpha");
-  await r.store.seed("b.md", "beta");
-}
-
-const joined = (h: Harness): string => h.notices.join(" | ");
+import { enc } from "../support/engineRig";
+import { harness, joined, seed } from "../support/actionsRig";
 
 describe("backup commands", () => {
   it("back up now makes a backup, shows progress, and reports success", async () => {
@@ -227,62 +157,5 @@ describe("resume command", () => {
     await h.actions.resumeInterrupted();
     expect(resume.mock.calls[0]?.[0].mode).toBe("full");
     expect(h.opened[0]?.title).toBe("Resuming backup");
-  });
-});
-
-describe("verify command", () => {
-  it("verifies the newest backup, records it, and reports a pass", async () => {
-    const h = harness();
-    await seed(h.r);
-    await h.actions.backupNow();
-    h.notices.length = 0;
-    await h.actions.verifyLatest(3);
-    expect(joined(h)).toContain("passed verification (level 3)");
-    expect(h.reports).toHaveLength(1);
-    expect(h.reports[0]?.result).toBe("pass");
-    expect(h.actions.isBusy).toBe(false);
-  });
-
-  it("with no backups it says so instead of failing", async () => {
-    const h = harness();
-    await h.actions.verifyLatest(3);
-    expect(joined(h)).toContain("no backups to verify");
-  });
-
-  it("a damaged backup is reported as FAILED and marked corrupt", async () => {
-    const h = harness();
-    await seed(h.r);
-    await h.actions.backupNow();
-    const index = await loadIndex(h.r.store, "backup");
-    const part = `backup/${index.backups[0]!.folder}/part-001.zip`;
-    const bytes = (await h.r.store.readBinary(part)).slice();
-    const at = Math.floor(bytes.length / 2);
-    bytes[at] = (bytes[at] ?? 0) ^ 0xff;
-    await h.r.store.writeBinary(part, bytes);
-    h.notices.length = 0;
-    await h.actions.verifyLatest(3);
-    expect(joined(h)).toContain("FAILED verification");
-    expect((await loadIndex(h.r.store, "backup")).backups[0]?.status).toBe("corrupt");
-  });
-
-  it("a held lock is reported, not thrown", async () => {
-    const h = harness();
-    await seed(h.r);
-    await h.actions.backupNow();
-    await h.r.store.writeBinary(
-      "backup/lock.json",
-      enc(
-        JSON.stringify({
-          schemaVersion: 1,
-          ownerId: "other",
-          platform: "desktop",
-          acquiredAt: h.r.clock.now(),
-          heartbeatAt: h.r.clock.now(),
-        }),
-      ),
-    );
-    h.notices.length = 0;
-    await h.actions.verifyLatest(3);
-    expect(joined(h)).toContain("Verification did not start");
   });
 });
