@@ -5,13 +5,16 @@ import type { IVaultStore } from "../storage/VaultStore";
 import type { Manifest, SettingsProfile, VerifyIssue, VerifyLevel, VerifyReport } from "../types";
 import { findBackup, loadIndex } from "./BackupIndex";
 import { loadManifest } from "./Manifest";
-import { checkStructure } from "./VerifyStructure";
+import { createYielder } from "../helpers/yieldToUI";
+import { checkPartCrc } from "./VerifyContent";
+import { checkEntryParts, checkPartStructure } from "./VerifyStructure";
 
 export interface VerifyDeps {
   store: IVaultStore;
   logger: ILogger;
   clock: IClock;
   getProfile: () => SettingsProfile;
+  yieldIfNeeded?: () => Promise<void>;
 }
 
 export interface VerifyProgress {
@@ -27,8 +30,8 @@ export interface VerifyOptions {
   isCancelled?: () => boolean;
 }
 
-/** Highest level this engine can run so far. */
-const MAX_LEVEL: VerifyLevel = 1;
+/** Highest level this engine can run so far (1 structure, 2 CRC). */
+const MAX_LEVEL: VerifyLevel = 2;
 
 /**
  * Checks that a backup can be trusted. Levels are cumulative: asking for level N runs every
@@ -57,16 +60,28 @@ export class VerifyEngine {
       issues.push({ message: "The manifest does not match the backup index" });
     }
     if (manifest) {
-      const found = await checkStructure(
-        store,
-        `${backupFolder}/${backup.folder}`,
-        manifest,
-        isCancelled,
-        (partIndex, partCount) =>
-          options.onProgress?.({ level: options.level, partIndex, partCount }),
-      );
-      issues.push(...found.issues);
-      entriesChecked = found.entriesChecked;
+      issues.push(...checkEntryParts(manifest));
+      const folder = `${backupFolder}/${backup.folder}`;
+      const yielder = this.deps.yieldIfNeeded ?? createYielder();
+      const tick = async (): Promise<void> => {
+        if (isCancelled()) throw new CancelledError("Verification cancelled");
+        await yielder();
+      };
+      for (const [i, part] of manifest.parts.entries()) {
+        await tick();
+        options.onProgress?.({
+          level: options.level,
+          partIndex: i + 1,
+          partCount: manifest.parts.length,
+        });
+        const path = `${folder}/${part.name}`;
+        const data = (await store.exists(path)) ? await store.readBinary(path) : null;
+        const directory = checkPartStructure(manifest, part, data, issues);
+        if (directory) entriesChecked += directory.length;
+        if (data && directory && options.level >= 2) {
+          await checkPartCrc(part, data, directory, issues, tick);
+        }
+      }
     }
     if (isCancelled()) throw new CancelledError("Verification cancelled");
 

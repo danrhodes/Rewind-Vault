@@ -97,5 +97,6 @@ export function verifyEngineFor(r: Rig): VerifyEngine {
     logger: r.logger,
     clock: r.clock,
     getProfile: () => r.profile,
+    yieldIfNeeded: async () => undefined,
   });
 }
