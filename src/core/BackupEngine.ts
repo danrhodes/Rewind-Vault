@@ -2,7 +2,7 @@ import { importAesKey } from "../crypto/cipher";
 import { KEY_LABELS, deriveSubKey } from "../crypto/kdf";
 import { signManifest } from "../crypto/sign";
 import { fromBase64 } from "../helpers/bytes";
-import { ENCRYPTION } from "../constants";
+import { ENCRYPTION, SCHEMA_VERSION } from "../constants";
 import type { ILogger } from "../helpers/logger";
 import type { IClock } from "../helpers/time";
 import { createYielder } from "../helpers/yieldToUI";
@@ -21,7 +21,7 @@ import type {
 import { addBackup, entryFromManifest, loadIndex, saveIndex } from "./BackupIndex";
 import { planBackup, type RunPlan } from "./BackupPlanner";
 import { loadState, saveState } from "./BackupState";
-import { applyDiffToState, stateFromHashed, type HashedFile } from "./Differ";
+import { applyDiffToState, emptyState, stateFromHashed, type HashedFile } from "./Differ";
 import { LockManager, type LockOptions } from "./LockManager";
 import { createManifest, saveManifest } from "./Manifest";
 import { packPart } from "./Packer";
@@ -52,6 +52,8 @@ export interface RunResult {
   fileCount: number;
   bytes: number;
   skippedFiles: string[];
+  /** Set when a differential was requested but a full backup was made instead. */
+  forcedFullReason?: string;
 }
 
 export class BackupEngine {
@@ -72,7 +74,7 @@ export class BackupEngine {
     let createdFolder: string | null = null;
     try {
       const index = await loadIndex(store, backupFolder);
-      const state = await loadState(store, backupFolder);
+      const state = await this.loadStateOrNull(backupFolder);
       const { plan } = await planBackup({
         store,
         profile,
@@ -83,9 +85,18 @@ export class BackupEngine {
         yieldIfNeeded: this.deps.yieldIfNeeded,
       });
       logger.info(`Backup ${plan.id}: ${plan.type}, ${plan.parts.flat().length} files`);
+      if (plan.forcedFullReason) {
+        logger.warn(`Differential backup became a full backup: ${plan.forcedFullReason}`);
+      }
 
       createdFolder = `${backupFolder}/${plan.folder}`;
-      const result = await this.execute(plan, profile, lock, index, state);
+      const result = await this.execute(
+        plan,
+        profile,
+        lock,
+        index,
+        state ?? emptyState(0, SCHEMA_VERSION.state),
+      );
       logger.info(`Backup ${plan.id} completed (${result.bytes} bytes)`);
       return result;
     } catch (error) {
@@ -201,7 +212,20 @@ export class BackupEngine {
       fileCount: entries.length,
       bytes,
       skippedFiles: [...plan.skippedOverMax, ...skippedFiles],
+      forcedFullReason: plan.forcedFullReason,
     };
+  }
+
+  /** A damaged state.json must not block backups: the planner turns null into a full backup. */
+  private async loadStateOrNull(backupFolder: string): Promise<BackupState | null> {
+    try {
+      return await loadState(this.deps.store, backupFolder);
+    } catch (error) {
+      this.deps.logger.warn(
+        `Backup state unreadable, a full backup will be made: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      return null;
+    }
   }
 
   private async keysFor(
