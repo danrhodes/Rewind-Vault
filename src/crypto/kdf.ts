@@ -57,3 +57,28 @@ export async function deriveKeyBytes(
   if (passphrase.length === 0) throw new ConfigError("Passphrase must not be empty");
   return pbkdf2Sha256(passphrase, salt, iterations, 32);
 }
+
+export async function hmacSha256(key: Uint8Array, data: Uint8Array): Promise<Uint8Array> {
+  const k = await crypto.subtle.importKey(
+    "raw",
+    bufferSource(key),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  return new Uint8Array(await crypto.subtle.sign("HMAC", k, bufferSource(data)));
+}
+
+/**
+ * Domain-separated 256-bit subkey: HMAC-SHA256(master, label). Use one label per purpose
+ * ("rewind-vault/encrypt/v1", "rewind-vault/manifest-hmac/v1") so the same passphrase
+ * never feeds two algorithms with the same key.
+ */
+export function deriveSubKey(master: Uint8Array, label: string): Promise<Uint8Array> {
+  return hmacSha256(master, new TextEncoder().encode(label));
+}
+
+export const KEY_LABELS = {
+  encrypt: "rewind-vault/encrypt/v1",
+  manifestHmac: "rewind-vault/manifest-hmac/v1",
+} as const;
