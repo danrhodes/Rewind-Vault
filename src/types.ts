@@ -42,6 +42,8 @@ export interface EncryptionInfo {
   /** Base64 salt. */
   salt: string;
   algo: "AES-256-GCM";
+  /** Base64 key-check verifier (see crypto/kdf keyCheckValue). Absent in older backups. */
+  keyCheck?: string;
 }
 
 export interface ManifestPart {

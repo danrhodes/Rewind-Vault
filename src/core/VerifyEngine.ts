@@ -1,7 +1,4 @@
-import { importAesKey } from "../crypto/cipher";
-import { KEY_LABELS, deriveSubKey } from "../crypto/kdf";
-import { fromBase64 } from "../helpers/bytes";
-import { CancelledError, ManifestError, RewindError, VerificationError } from "../helpers/errors";
+import { CancelledError, ManifestError, VerificationError } from "../helpers/errors";
 import type { ILogger } from "../helpers/logger";
 import type { IClock } from "../helpers/time";
 import { createYielder } from "../helpers/yieldToUI";
@@ -11,6 +8,7 @@ import { findBackup, loadIndex } from "./BackupIndex";
 import { loadManifest } from "./Manifest";
 import type { MasterKeyFn } from "./RestoreReader";
 import { checkPartContent } from "./VerifyContent";
+import { prepareKeys } from "./VerifyKeys";
 import { checkEntryParts, checkPartStructure } from "./VerifyStructure";
 
 export interface VerifyDeps {
@@ -36,8 +34,8 @@ export interface VerifyOptions {
   isCancelled?: () => boolean;
 }
 
-/** Highest level this engine can run so far (1 structure, 2 CRC, 3 SHA-256). */
-const MAX_LEVEL: VerifyLevel = 3;
+/** Highest level this engine can run so far (1 structure, 2 CRC, 3 SHA-256, 4 decrypt + signature). */
+const MAX_LEVEL: VerifyLevel = 4;
 
 /**
  * Checks that a backup can be trusted. Levels are cumulative: asking for level N runs every
@@ -74,7 +72,13 @@ export class VerifyEngine {
         if (isCancelled()) throw new CancelledError("Verification cancelled");
         await yielder();
       };
-      const encryptionKey = options.level >= 3 ? await this.keyFor(manifest, skipped) : undefined;
+      const encryptionKey = await prepareKeys(
+        this.deps.deriveMasterKey,
+        manifest,
+        options.level,
+        issues,
+        skipped,
+      );
       for (const [i, part] of manifest.parts.entries()) {
         await tick();
         options.onProgress?.({
@@ -122,25 +126,6 @@ export class VerifyEngine {
         (skipped.length > 0 ? `, ${skipped.length} check(s) skipped` : ""),
     );
     return report;
-  }
-
-  /** Key for reading inside an encrypted backup, or undefined (noting why in `skipped`). */
-  private async keyFor(manifest: Manifest, skipped: string[]): Promise<CryptoKey | undefined> {
-    const info = manifest.encryption;
-    if (!info.enabled) return undefined;
-    if (!this.deps.deriveMasterKey) {
-      skipped.push("Entry SHA-256 of an encrypted backup needs the passphrase; not checked");
-      return undefined;
-    }
-    try {
-      const master = await this.deps.deriveMasterKey(fromBase64(info.salt), info.iterations);
-      return await importAesKey(await deriveSubKey(master, KEY_LABELS.encrypt));
-    } catch (error) {
-      if (error instanceof CancelledError) throw error;
-      const why = error instanceof RewindError ? error.message : "key derivation failed";
-      skipped.push(`Entry SHA-256 of an encrypted backup not checked: ${why}`);
-      return undefined;
-    }
   }
 
   private async readManifest(folder: string, issues: VerifyIssue[]): Promise<Manifest | null> {

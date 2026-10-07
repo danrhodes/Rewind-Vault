@@ -36,7 +36,7 @@ export interface ExecContext {
   index: BackupIndex;
   previousState: BackupState;
   /** Null for unencrypted backups. */
-  keys: { encryptionKey: CryptoKey; hmacKey: Uint8Array } | null;
+  keys: { encryptionKey: CryptoKey; hmacKey: Uint8Array; keyCheck: string } | null;
   yieldIfNeeded: () => Promise<void>;
   nonDestructive: boolean;
   /** Continue an interrupted run: its finished parts are kept and not packed again. */
@@ -140,6 +140,7 @@ export async function executePlan(ctx: ExecContext): Promise<CompletedResult> {
         iterations: plan.encryption.iterations,
         salt: plan.encryption.salt,
         algo: ENCRYPTION.algo,
+        ...(ctx.keys ? { keyCheck: ctx.keys.keyCheck } : {}),
       },
     }),
     parts,

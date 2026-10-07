@@ -1,7 +1,7 @@
 import { importAesKey } from "../crypto/cipher";
-import { KEY_LABELS, deriveSubKey } from "../crypto/kdf";
+import { KEY_LABELS, deriveSubKey, keyCheckValue } from "../crypto/kdf";
 import { fromBase64 } from "../helpers/bytes";
-import { RestoreError, VerificationError } from "../helpers/errors";
+import { RestoreError, VerificationError, WrongPassphraseError } from "../helpers/errors";
 import type { IVaultStore } from "../storage/VaultStore";
 import type { ResolvedChain, ResolvedFile } from "./ChainResolver";
 import { unpackPart } from "./Unpacker";
@@ -22,6 +22,9 @@ async function keyFor(
     throw new RestoreError(`Backup ${backupId} is encrypted and no passphrase is available`);
   }
   const master = await deriveMasterKey(fromBase64(info.salt), info.iterations);
+  if (info.keyCheck !== undefined && (await keyCheckValue(master)) !== info.keyCheck) {
+    throw new WrongPassphraseError();
+  }
   return importAesKey(await deriveSubKey(master, KEY_LABELS.encrypt));
 }
 

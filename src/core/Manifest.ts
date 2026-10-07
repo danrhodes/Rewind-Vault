@@ -67,7 +67,15 @@ function validateEncryption(raw: unknown): EncryptionInfo {
   if (enabled === true && iterations < ENCRYPTION.minIterations) {
     check.fail("encryption.iterations", `must be at least ${ENCRYPTION.minIterations}`);
   }
-  return { enabled: enabled as boolean, kdf, iterations, salt, algo };
+  const keyCheck = o.keyCheck === undefined ? undefined : check.str(o, "keyCheck", "encryption");
+  return {
+    enabled: enabled as boolean,
+    kdf,
+    iterations,
+    salt,
+    algo,
+    ...(keyCheck !== undefined ? { keyCheck } : {}),
+  };
 }
 
 function validateParts(raw: unknown[]): ManifestPart[] {

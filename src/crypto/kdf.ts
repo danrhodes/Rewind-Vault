@@ -1,5 +1,5 @@
 import { ENCRYPTION } from "../constants";
-import { bufferSource } from "../helpers/bytes";
+import { bufferSource, toBase64 } from "../helpers/bytes";
 import { ConfigError, CryptoError } from "../helpers/errors";
 
 export function generateSalt(bytes: number = ENCRYPTION.saltBytes): Uint8Array {
@@ -81,4 +81,16 @@ export function deriveSubKey(master: Uint8Array, label: string): Promise<Uint8Ar
 export const KEY_LABELS = {
   encrypt: "rewind-vault/encrypt/v1",
   manifestHmac: "rewind-vault/manifest-hmac/v1",
+  keyCheck: "rewind-vault/key-check/v1",
 } as const;
+
+/**
+ * Base64 verifier stored in an encrypted backup's manifest so a wrong passphrase can be told
+ * apart from damaged data (AES-GCM alone cannot: both fail the tag check). It is an HMAC under
+ * its own subkey, so it reveals nothing about the encryption or signing keys.
+ */
+export async function keyCheckValue(master: Uint8Array): Promise<string> {
+  const key = await deriveSubKey(master, KEY_LABELS.keyCheck);
+  const mac = await hmacSha256(key, new TextEncoder().encode("rewind-vault key check"));
+  return toBase64(mac);
+}

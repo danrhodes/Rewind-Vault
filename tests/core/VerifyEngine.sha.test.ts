@@ -153,12 +153,24 @@ describe("verify L3: encrypted backups", () => {
     expect(report.issues[0]?.message).toMatch(/SHA-256 in the manifest/);
   });
 
-  it("with a wrong key, reports every entry as undecryptable instead of crashing", async () => {
+  it("with a wrong key, reports ONE clear wrong-passphrase finding (key check), not N failures", async () => {
     const { r, id } = await backup(encrypted, 6);
     const report = await verifyEngineFor(r, {
       deriveMasterKey: async (salt) => fastMaster(new Uint8Array([...salt, 9])),
     }).verify(id, L3);
     expect(report.result).toBe("fail");
+    expect(report.issues).toHaveLength(1);
+    expect(report.issues[0]?.message).toMatch(/Wrong passphrase/);
+  });
+
+  it("an older backup without a key check still fails per entry with a wrong key", async () => {
+    const { r, id, folder } = await backup(encrypted, 6);
+    await editManifest(r, folder, (m) => {
+      delete m.encryption.keyCheck;
+    });
+    const report = await verifyEngineFor(r, {
+      deriveMasterKey: async (salt) => fastMaster(new Uint8Array([...salt, 9])),
+    }).verify(id, L3);
     expect(report.issues).toHaveLength(6);
     expect(report.issues[0]?.message).toMatch(/cannot be decrypted/);
   });

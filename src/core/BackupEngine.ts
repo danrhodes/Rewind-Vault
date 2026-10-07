@@ -1,6 +1,6 @@
 import { SCHEMA_VERSION } from "../constants";
 import { importAesKey } from "../crypto/cipher";
-import { KEY_LABELS, deriveSubKey } from "../crypto/kdf";
+import { KEY_LABELS, deriveSubKey, keyCheckValue } from "../crypto/kdf";
 import { fromBase64 } from "../helpers/bytes";
 import { CancelledError } from "../helpers/errors";
 import type { ILogger } from "../helpers/logger";
@@ -248,6 +248,7 @@ export class BackupEngine {
     return {
       encryptionKey: await importAesKey(await deriveSubKey(master, KEY_LABELS.encrypt)),
       hmacKey: await deriveSubKey(master, KEY_LABELS.manifestHmac),
+      keyCheck: await keyCheckValue(master),
     };
   }
 }
