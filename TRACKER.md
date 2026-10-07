@@ -25,7 +25,7 @@ Priority: P1 now · P2 schedule · P3 delegate/later · P4 defer.
 - [x] T-012 [P1] `helpers/errors.ts` typed error classes | T-010 | unit tests
 - [x] T-013 [P1] `helpers/logger.ts` with level + rotating file sink | T-004 | rotation test
 - [x] T-014 [P1] `helpers/time.ts`, `format.ts` (bytes, durations, timestamps for folder names) | T-010 | unit tests
-- [ ] T-015 [P1] `helpers/glob.ts` exclusion matcher | T-010 | tests for `**`, `*`, negation, hidden dirs
+- [x] T-015 [P1] `helpers/glob.ts` exclusion matcher | T-010 | tests for `**`, `*`, negation, hidden dirs
 - [ ] T-016 [P1] `helpers/chunk.ts`, `yieldToUI.ts` | T-010 | chunker tests; yield returns control
 - [ ] T-017 [P1] `helpers/platform.ts` (isMobile, isDesktop, battery, visibility wrappers) | T-010 | mockable
 - [ ] T-018 [P1] `storage/VaultStore.ts` adapter wrapper (read/write binary, list, stat, mkdir, remove, rename) | T-010,T-004 | contract tests run on Mock + real impl shape
@@ -177,3 +177,4 @@ _Format: `YYYY-MM-DD | tasks touched | tests added | decisions | blockers | next
 - 2026-10-07 | T-012 done | tests/helpers/errors.test.ts (3) | `cause` declared manually (lib ES2020 has no Error.cause). | — | T-013
 - 2026-10-07 | T-013 done | tests/helpers/logger.test.ts (5) | ILogger defined in helpers/logger.ts (matches MockLogger). Rotating sink keeps one rotation (`log.txt.1`) and takes a minimal LogFileStore interface so it does not depend on T-018. Size cap setting (`logSizeCapKb`) UI is T-103. | — | T-014
 - 2026-10-07 | T-014 done | tests/helpers/time.test.ts (7) | Folder timestamps are UTC (sort chronologically, no DST ambiguity). IClock defined in helpers/time.ts. Backup id = folder name. | — | T-015
+- 2026-10-07 | T-015 done | tests/helpers/glob.test.ts (11) | Gitignore-style semantics (unanchored w/o slash, trailing / = dir contents only, last match wins, matched folder covers contents). Added isHiddenPath and isInsideFolder for the Scanner's hidden toggle and forced backup-folder exclusion. | — | T-016
