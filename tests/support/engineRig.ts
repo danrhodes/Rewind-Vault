@@ -1,4 +1,5 @@
 import { BackupEngine, type EngineDeps } from "../../src/core/BackupEngine";
+import { RestoreEngine } from "../../src/core/RestoreEngine";
 import type { CompletedResult, RunOptions } from "../../src/core/RunTypes";
 import { createDefaultProfile } from "../../src/settings/defaults";
 import type { SettingsProfile } from "../../src/types";
@@ -67,4 +68,15 @@ export async function runOk(engine: BackupEngine, options: RunOptions): Promise<
   if (result.status !== "completed")
     throw new Error(`expected a completed backup, got ${result.status}`);
   return result;
+}
+
+/** A RestoreEngine sharing the rig's store, clock, logger and profile. */
+export function restoreEngineFor(r: Rig): RestoreEngine {
+  return new RestoreEngine({
+    store: r.store,
+    logger: r.logger,
+    clock: r.clock,
+    getProfile: () => r.profile,
+    yieldIfNeeded: async () => undefined,
+  });
 }

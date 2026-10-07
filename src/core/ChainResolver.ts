@@ -16,8 +16,9 @@ export interface ResolvedFile {
   path: string;
   /** The manifest entry holding this file's latest version at the chosen point. */
   entry: ManifestEntry;
-  /** Backup (folder name) that stores it. */
+  /** Backup that stores it, and that backup's folder inside the backup folder. */
   backupId: string;
+  folder: string;
 }
 
 export interface ResolvedChain {
@@ -92,7 +93,12 @@ export async function resolveChain(
       });
     }
     for (const entry of manifest.entries) {
-      files.set(entry.path, { path: entry.path, entry, backupId: backup.id });
+      files.set(entry.path, {
+        path: entry.path,
+        entry,
+        backupId: backup.id,
+        folder: backup.folder,
+      });
       deletedPaths.delete(entry.path);
     }
   }

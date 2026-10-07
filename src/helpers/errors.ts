@@ -9,7 +9,8 @@ export type ErrorCode =
   | "cancelled"
   | "config"
   | "insufficient-space"
-  | "chain";
+  | "chain"
+  | "restore";
 
 export interface ErrorOptions {
   cause?: unknown;
@@ -78,6 +79,13 @@ export class VerificationError extends RewindError {
 export class BrokenChainError extends RewindError {
   constructor(message: string, options: ErrorOptions = {}) {
     super("chain", message, options);
+  }
+}
+
+/** A restore request that cannot be carried out as asked (bad scope, missing file, no consent). */
+export class RestoreError extends RewindError {
+  constructor(message: string, options: ErrorOptions = {}) {
+    super("restore", message, options);
   }
 }
 
