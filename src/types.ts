@@ -129,6 +129,8 @@ export interface VerifyReport {
   result: "pass" | "fail";
   entriesChecked: number;
   issues: VerifyIssue[];
+  /** Checks that could not run (for example no passphrase for an encrypted backup). Not failures. */
+  skipped?: string[];
 }
 
 // ---- Settings (PLAN §7). Each platform has its own profile. ----
