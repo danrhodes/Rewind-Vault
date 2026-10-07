@@ -162,3 +162,19 @@ describe("applyRetention", () => {
     expect(result).toEqual({ pruned: [], failed: [] });
   });
 });
+
+describe("keep N days inside the backup engine", () => {
+  it("removes backups older than N days on the next run, keeping recent ones", async () => {
+    const r = await seeded(0, (p) => {
+      p.retention.keepDays = 7;
+    });
+    const old = await backup(r);
+    r.clock.advance(10 * 24 * 60 * MINUTE);
+    const mid = await backup(r);
+    r.clock.advance(2 * 24 * 60 * MINUTE);
+    expect(mid.retention?.pruned).toEqual([old.backupId]); // 10 days old at that moment
+    const fresh = await backup(r);
+    expect(fresh.retention).toBeUndefined(); // mid is only 2 days old
+    expect(await folders(r)).toEqual([mid.backupId, fresh.backupId].sort());
+  });
+});

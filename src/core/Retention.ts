@@ -3,7 +3,13 @@ import { chainFor, countsTowardRetention, sortedBackups } from "./BackupIndex";
 
 /** Why a backup is being kept. Shown to the user and asserted in tests. */
 export type KeepReason =
-  "no-policy" | "keep-last" | "newest-intact" | "pinned" | "not-intact" | "chain-dependency";
+  | "no-policy"
+  | "keep-last"
+  | "keep-days"
+  | "newest-intact"
+  | "pinned"
+  | "not-intact"
+  | "chain-dependency";
 
 export interface RetentionPlan {
   /** Backups to delete. Always intact (status ok) and never a dependency of a kept backup. */
@@ -33,8 +39,23 @@ const keepLastRule =
     return { reason: "keep-last", ids: new Set(intact.slice(0, n).map((b) => b.id)) };
   };
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** Keep intact backups made within the last N days (a backup exactly N days old stays). 0 = off. */
+const keepDaysRule =
+  (settings: RetentionSettings): Rule =>
+  (intact, now) => {
+    const days = settings.keepDays;
+    if (!(days > 0)) return null;
+    const cutoff = now - days * DAY_MS;
+    return {
+      reason: "keep-days",
+      ids: new Set(intact.filter((b) => b.createdAt >= cutoff).map((b) => b.id)),
+    };
+  };
+
 function rulesFor(settings: RetentionSettings): Rule[] {
-  return [keepLastRule(settings)];
+  return [keepLastRule(settings), keepDaysRule(settings)];
 }
 
 function addReason(keep: Map<string, KeepReason[]>, id: string, reason: KeepReason): void {
