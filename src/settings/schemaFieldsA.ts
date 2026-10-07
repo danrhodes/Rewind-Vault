@@ -1,0 +1,141 @@
+import { LIMITS } from "../constants";
+import type { FieldDef } from "./schemaTypes";
+
+/** Basic, Destination, ZIP. */
+export const FIELDS_A: readonly FieldDef[] = [
+  // ---- Basic ----
+  {
+    group: "basic",
+    key: "backupOnStartup",
+    kind: "toggle",
+    name: "Back up on startup",
+    desc: "Make a backup shortly after Obsidian finishes loading.",
+  },
+  {
+    group: "basic",
+    key: "startupDelaySec",
+    kind: "number",
+    name: "Startup delay",
+    desc: "Wait this long after loading before the startup backup, so it does not slow Obsidian down.",
+    min: 0,
+    max: LIMITS.startupDelayMaxSec,
+    unit: "seconds",
+    shownIf: { key: "backupOnStartup", value: true },
+  },
+  {
+    group: "basic",
+    key: "autoStyle",
+    kind: "dropdown",
+    name: "Automatic backup style",
+    desc: "Differential saves only what changed since the last backup. Non-destructive never removes or overwrites older backups and never prunes.",
+    options: [
+      { value: "off", label: "Off (manual only)" },
+      { value: "full", label: "Full every time" },
+      { value: "differential", label: "Differential" },
+      { value: "non-destructive", label: "Non-destructive" },
+    ],
+  },
+  {
+    group: "basic",
+    key: "includeHidden",
+    kind: "toggle",
+    name: "Include hidden files and folders",
+    desc: "Names starting with a dot. Also needs Exclusions > Exclude hidden to be off.",
+  },
+  {
+    group: "basic",
+    key: "showLegacyCommands",
+    kind: "toggle",
+    name: "Show legacy commands",
+    desc: "Also list the older, more detailed commands in the command palette.",
+  },
+
+  // ---- Destination ----
+  {
+    group: "destination",
+    key: "destination",
+    kind: "dropdown",
+    name: "Location",
+    desc: "Inside the vault works everywhere. An external copy writes to a folder outside the vault (desktop only).",
+    desktopOnly: true,
+    options: [
+      { value: "vault", label: "Inside the vault" },
+      { value: "external", label: "External copy (desktop)" },
+    ],
+  },
+  {
+    group: "destination",
+    key: "backupFolder",
+    kind: "text",
+    name: "Backup folder",
+    desc: "Vault-relative folder. It is never included in its own backups. Exclude it from Sync, iCloud and Git.",
+    placeholder: "backup",
+    validate: "folder",
+  },
+  {
+    group: "destination",
+    key: "restoreFolder",
+    kind: "text",
+    name: "Restore folder",
+    desc: "Restored files are written here by default, so your live notes are not touched.",
+    placeholder: "restore",
+    validate: "folder",
+  },
+  {
+    group: "destination",
+    key: "externalPath",
+    kind: "text",
+    name: "External copy path",
+    desc: "Absolute path of the folder to copy backups to.",
+    desktopOnly: true,
+    placeholder: "D:\\Backups\\MyVault",
+    shownIf: { key: "destination", value: "external" },
+  },
+
+  // ---- ZIP ----
+  {
+    group: "zip",
+    key: "maxFilesPerZip",
+    kind: "number",
+    name: "Max files per ZIP",
+    desc: "Start a new ZIP part after this many files.",
+    min: 1,
+    max: 1_000_000,
+  },
+  {
+    group: "zip",
+    key: "maxSourceMbPerZip",
+    kind: "number",
+    name: "Max source size per ZIP",
+    desc: "Start a new part after this much original data.",
+    min: 1,
+    max: 100_000,
+    unit: "MB",
+  },
+  {
+    group: "zip",
+    key: "processOverMax",
+    kind: "toggle",
+    name: "Back up files larger than the limit",
+    desc: "A file bigger than the limits gets its own ZIP part. When off it is skipped and reported.",
+  },
+  {
+    group: "zip",
+    key: "maxOutputZipMb",
+    kind: "number",
+    name: "Max ZIP output size",
+    desc: "Split so that no ZIP part is bigger than this. 0 means no limit.",
+    min: 0,
+    max: 100_000,
+    unit: "MB",
+  },
+  {
+    group: "zip",
+    key: "compressionLevel",
+    kind: "number",
+    name: "Compression level",
+    desc: "0 stores files uncompressed (fastest), 9 compresses most (slowest).",
+    min: LIMITS.compressionLevelMin,
+    max: LIMITS.compressionLevelMax,
+  },
+];
