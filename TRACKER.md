@@ -7,8 +7,8 @@ Priority: P1 now · P2 schedule · P3 delegate/later · P4 defer.
 ## Status
 - Current phase: 6
 - Last session: 2026-10-07
-- Next task: T-085 (T-005 awaiting MT-1)
-- Tasks done: 62 / 118
+- Next task: T-086 (T-005 awaiting MT-1)
+- Tasks done: 63 / 118
 
 ---
 
@@ -88,7 +88,7 @@ Priority: P1 now · P2 schedule · P3 delegate/later · P4 defer.
 - [x] T-082 [P1] `Scheduler` interval + daily times via `registerInterval` | T-047 | fake-timer tests
 - [x] T-083 [P1] `ResumeTrigger` visibilitychange, min-gap setting | T-047 | tests
 - [x] T-084 [P2] `EventTrigger` N edits, idle N min, create/delete/rename | T-047 | debounce tests
-- [ ] T-085 [P2] `CloseTrigger` desktop best effort | T-047 | manual queue
+- [x] T-085 [P2] `CloseTrigger` desktop best effort | T-047 | manual queue
 - [ ] T-086 [P2] Trigger de-duplication (no overlapping runs, cooldown) | T-045 | tests
 
 ## Phase 7 — Retention
@@ -165,6 +165,7 @@ _None._
 _Items needing a real Obsidian runtime or device. Format: `MT-n | device | what to test | linked task | result`._
 MT-1 | GitHub | Push branch, confirm the CI workflow (typecheck, lint, test, build) runs green | T-005 | pending
 MT-2 | Obsidian desktop + mobile | Copy manifest.json + main.js into a test vault, enable the plugin: it loads without error, and backup/log.txt receives "Rewind Vault loaded" (checks AdapterVaultStore against the real DataAdapter) | T-024 | pending
+MT-3 | Obsidian desktop | Enable backup on close with a small vault, quit Obsidian: does a new backup folder appear? Either way no half-made folder and no stale lock should remain | T-085 | pending
 
 ## Ideas Parking Lot
 _Out-of-plan ideas. Do not build until promoted to a task._
@@ -234,3 +235,4 @@ _Format: `YYYY-MM-DD | tasks touched | tests added | decisions | blockers | next
 - 2026-10-07 | T-081 done | tests/triggers/StartupTrigger.test.ts (12: both-switch rule, waits for layout ready then the delay then fires once, zero delay immediate, synchronous ready callback, clamp 0-300 and nonsense, either switch off never fires, turning it off during the delay cancels, stop() during delay and before ready, restart does not double, failing run logged) | DECISION logged: startup needs basic.backupOnStartup AND triggers.onStartup. New triggers/StartupTrigger.ts: start(whenReady) takes Obsidian's app.workspace.onLayoutReady (or any call-me-when-ready function), waits startupDelaySec via the new one-shot TimerHost.setTimeout/clearTimeout (globalTimerHost updated; main wraps with plugin.register), settings re-read when the delay ends, generation counter ignores a ready callback after stop(). Reason passed to the shared RunRequest is 'startup'; the RunRequest owner applies evaluateConditions (T-080). | — | T-083
 - 2026-10-07 | T-083 done | tests/triggers/ResumeTrigger.test.ts (11: fires on return to foreground after hidden, not for events that did not start hidden or when hiding, starting hidden counts the first return, minimum gap respected then released, zero gap, gap also counts another trigger's backup (lastBackupAt), failing lastBackupAt falls back to own record, option off and picked up live, no overlapping runs, failing run logged and later resumes work, stop/start do not double-subscribe) | New triggers/ResumeTrigger.ts over IPlatform.onVisibilityChange. Gap = now - max(last backup time (optional host callback ResumeOptions.lastBackupAt, e.g. newest index createdAt), own last firing) vs triggers.resumeMinGapMin; only a hidden->visible transition counts (so startup-visible is the startup trigger's job). Settings read live. MockClock + MockPlatform, no real timers. T-152 (resume-from-checkpoint on app resume) builds on this. | — | T-084
 - 2026-10-07 | T-084 done | tests/triggers/EventTrigger.test.ts (16: N edits fire and reset, autosave burst counts once per window, off when disabled, live threshold; idle fires after quiet minutes and restarts on activity, not without changes, another trigger's backup resets it; create/delete/rename each with its own reason after the debounce, bulk of 200 creates = one backup, mixed burst reports first kind and ignores kinds that are off; ignores backup folder, restore folder and excluded paths, no overlapping runs with changes during a run counting toward the next, failing run logged, stop() cleans everything and start() twice does not double up) | New triggers/EventTrigger.ts over a host-supplied VaultEvents {on(kind, cb) -> unsubscribe} (main wires app.vault.on modify/create/delete/rename; rename reports the new path). Debounce EVENT_DEBOUNCE_MS = 10 s (each event restarts it), edits coalesced per file per EDIT_COALESCE_MS = 10 s anchored at the last COUNTED edit (bug found and fixed in testing: a long autosave session was counted once in total). Ignored: backup folder and exclusions via createExcludeCheck, plus the restore folder (restores must not trigger backups). Any fire resets counters and timers because one backup covers everything so far. T-136 (words typed) can extend this. All Phase 6 triggers (T-081..T-084) now exist but none is wired into main/services yet. | — | T-085
+- 2026-10-07 | T-085 done | tests/triggers/CloseTrigger.test.ts (6: fires once with reason 'close', repeat signals ignored, option off and picked up live, never subscribes on mobile, failing run logged not thrown, start twice/stop re-arm) | New triggers/CloseTrigger.ts over a host-supplied CloseEvents {onBeforeClose(cb) -> unsubscribe} (main wires window beforeunload). BEST EFFORT: the app does not await async work in a close handler, so the run may be cut off; safe because backups are atomic with the manifest last (next run discards or resumes the leftovers). Desktop only (checked via IPlatform.isDesktop). Whether a real Obsidian quit lets a backup finish is queued as MT-3. Not wired into main yet. | — | T-086
