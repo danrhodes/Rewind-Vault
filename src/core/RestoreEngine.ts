@@ -9,7 +9,9 @@ import type { IVaultStore } from "../storage/VaultStore";
 import type { BackupEntry, SettingsProfile } from "../types";
 import { loadIndex } from "./BackupIndex";
 import { resolveChain, type ResolvedFile, type RestoreSource } from "./ChainResolver";
+import { readResolvedFile, type MasterKeyFn } from "./RestoreReader";
 import { scanOptionsFromProfile, scanVault } from "./Scanner";
+import { writeAtomic } from "../storage/AtomicWriter";
 
 export type RestoreScope =
   { kind: "all" } | { kind: "file"; path: string } | { kind: "folder"; path: string };
@@ -64,6 +66,28 @@ export interface RestoreDeps {
   clock: IClock;
   getProfile: () => SettingsProfile;
   yieldIfNeeded?: () => Promise<void>;
+  /** Needed only to restore from encrypted backups. Wired to PassphraseService.getKey. */
+  deriveMasterKey?: MasterKeyFn;
+}
+
+export interface RestoreFileRequest {
+  source: RestoreSource;
+  /** Vault-relative path of the file as it was in the backup. */
+  path: string;
+  destination: RestoreDestination;
+  /**
+   * Replace a file at the destination whose content differs. Off by default: without it a
+   * differing file makes the restore fail and nothing is written.
+   */
+  overwrite?: boolean;
+}
+
+export interface RestoreFileResult {
+  /** Vault path that was written, or that already held identical content. */
+  writtenTo: string;
+  backupId: string;
+  outcome: "created" | "replaced" | "unchanged";
+  bytes: number;
 }
 
 /** Where a vault-relative path ends up for a destination. */
@@ -148,6 +172,59 @@ export class RestoreEngine {
       preview.deletions = live.map((f) => f.path).filter((p) => inScope(scope, p) && !keep.has(p));
     }
     return preview;
+  }
+
+  /**
+   * Restore one file. The content is read and verified against the manifest hash BEFORE
+   * anything is written, then written atomically, so a failure never leaves a damaged or
+   * half-written file. A differing file at the destination is only replaced with `overwrite`.
+   */
+  async restoreFile(request: RestoreFileRequest): Promise<RestoreFileResult> {
+    const { store } = this.deps;
+    const profile = this.deps.getProfile();
+    const backupFolder = profile.destination.backupFolder;
+    const path = request.path.replace(/\/+$/, "");
+    if (!isSafeRelPath(path)) throw new RestoreError(`"${request.path}" is not a valid vault path`);
+
+    const index = await loadIndex(store, backupFolder);
+    const chain = await resolveChain(store, backupFolder, index, request.source);
+    const file = chain.files.get(path);
+    if (!file) throw new RestoreError(`"${request.path}" is not in backup ${chain.target.id}`);
+    await this.assertPartsPresent(backupFolder, [file]);
+
+    const root =
+      request.destination.kind === "vault"
+        ? ""
+        : `${profile.destination.restoreFolder}/${chain.target.id}`;
+    const target = destinationPath(root, file.path);
+    const current = await store.stat(target);
+    if (current && current.type !== "file") {
+      throw new RestoreError(`Cannot restore ${target}: a folder is in the way`);
+    }
+
+    const data = await readResolvedFile(
+      store,
+      backupFolder,
+      chain,
+      file,
+      this.deps.deriveMasterKey,
+    );
+    const result = { writtenTo: target, backupId: file.backupId, bytes: data.length };
+    if (!current) {
+      await writeAtomic(store, target, data);
+      return { ...result, outcome: "created" };
+    }
+    if (!(await this.differs(target, current.size, file))) {
+      return { ...result, outcome: "unchanged" };
+    }
+    if (!request.overwrite) {
+      throw new RestoreError(
+        `${target} already exists with different content; overwrite was not chosen`,
+      );
+    }
+    await writeAtomic(store, target, data);
+    this.deps.logger.info(`Restored ${file.path} over ${target} from backup ${file.backupId}`);
+    return { ...result, outcome: "replaced" };
   }
 
   private async differs(path: string, currentSize: number, file: ResolvedFile): Promise<boolean> {

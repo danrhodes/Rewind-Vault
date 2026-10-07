@@ -7,8 +7,8 @@ Priority: P1 now · P2 schedule · P3 delegate/later · P4 defer.
 ## Status
 - Current phase: 4
 - Last session: 2026-10-07
-- Next task: T-063 (T-005 awaiting MT-1)
-- Tasks done: 41 / 118
+- Next task: T-064 (T-005 awaiting MT-1)
+- Tasks done: 42 / 118
 
 ---
 
@@ -63,7 +63,7 @@ Priority: P1 now · P2 schedule · P3 delegate/later · P4 defer.
 - [x] T-060 [P1] `core/Unpacker.ts` stream entries with filter | T-044 | tests
 - [x] T-061 [P1] Chain resolver: base + diffs + tombstones to a point in time | T-060,T-041 | tests
 - [x] T-062 [P1] `RestoreEngine.preview()` add/change/delete lists | T-061 | tests
-- [ ] T-063 [P1] Restore single file | T-061 | tests
+- [x] T-063 [P1] Restore single file | T-061 | tests
 - [ ] T-064 [P1] Restore folder | T-063 | tests
 - [ ] T-065 [P1] Restore whole vault, default to restore folder, explicit overwrite option | T-064 | no overwrite by default
 - [ ] T-066 [P1] Automatic pre-restore safety snapshot | T-065,T-047 | snapshot exists before any write
@@ -211,3 +211,4 @@ _Format: `YYYY-MM-DD | tasks touched | tests added | decisions | blockers | next
 - 2026-10-07 | T-060 done | tests/core/Unpacker.test.ts (21) | unpackPart(store, partPath, {encryptionKey, filter, expectedSha256}) is an async generator over fflate's streaming Unzip: one entry decoded at a time (the part itself is read whole), filtered-out entries are never decompressed (damage in them is invisible), encrypted entries are decrypted then inflated, unsafe names (.., absolute, empty segments) raise VerificationError, hashes from the manifest are verified so corrupt data is never yielded, a wrong key raises TamperError, damaged ZIPs raise VerificationError. | — | T-061
 - 2026-10-07 | T-061 done | tests/core/ChainResolver.test.ts (15) | resolveChain(store, folder, index, {id}|{at}) folds base + diffs in order (entries replace, tombstones remove, a full resets) and returns files path -> {entry, backupId} plus deletedPaths (tombstoned and not re-added; feeds T-131 recovery). Verified against live-vault snapshots recorded after EVERY backup of a 6-step history with two fulls. Refuses (BrokenChainError, new error class) on: unknown id, any non-ok link, missing folder/manifest, index/manifest mismatch, diff built on another base, base missing from index. By time = newest ok backup at or before the moment. Limit: a diff deleted from the middle of a chain by hand is only detectable if the index still lists later diffs; T-095 (never prune a base with live dependents) and T-076 (L5) are the guards. chainFor tie-break by id added. | — | T-062
 - 2026-10-07 | T-062 done | tests/core/RestoreEngine.preview.test.ts (16), support: restoreEngineFor() | RestoreEngine.preview(request) returns additions / changes / deletions / unchanged count / bytesToWrite without any write (asserted by call recording). Request = source ({id}|{at}) + scope (all | file | folder) + destination: restore-folder (DEFAULT: <restoreFolder>/<backup id>/, live vault untouched) or vault (explicit). Changes detected by size, then SHA-256. deleteExtraneous (vault + all/folder scope only, off by default) lists live files the backup lacks, using the normal scan exclusions so the backup folder and excluded paths are never offered for deletion. Fails early (BrokenChainError) if a part needed by the scope is missing; unneeded missing parts are fine. New error class RestoreError (bad scope, file not in backup). Session total: T-047..T-053, T-060..T-062 (10 tasks); 458 tests passing. | — | T-063
+- 2026-10-07 | T-063 done | tests/core/RestoreEngine.file.test.ts (21: restore folder, version from older backup, point in time, vault create/replace/unchanged, binary round-trip, missing part, flipped byte, unsafe paths, folder in the way, encrypted ok/no passphrase/wrong key) | RestoreEngine.restoreFile({source, path, destination, overwrite?}) -> {writtenTo, backupId, outcome created|replaced|unchanged, bytes}. Content is read via new core/RestoreReader.ts (one entry decompressed, decrypted if needed, hash-checked against the manifest) BEFORE any write, then written with writeAtomic, so failures never leave a partial file. A differing file at the destination is only replaced with overwrite:true, even in the restore folder (re-running a restore never silently clobbers). RestoreDeps gained optional deriveMasterKey (wire to PassphraseService.getKey with services/commands); encrypted backup without it fails with RestoreError. No pre-restore safety snapshot yet: that is T-066 and must wrap vault-destination writes. RestoreEngine.ts is 246 lines: T-064/T-065 should put folder/vault logic in a new file. | — | T-064
