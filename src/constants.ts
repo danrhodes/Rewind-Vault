@@ -18,6 +18,7 @@ export const FILE_NAMES = {
   state: "state.json",
   lock: "lock.json",
   checkpoint: "checkpoint.json",
+  deepVerify: "deep-verify.json",
   log: "log.txt",
   manifest: "manifest.json",
   tempSuffix: ".tmp",

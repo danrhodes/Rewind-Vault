@@ -2,6 +2,8 @@ import type { TimerHost, TriggerDeps, TriggerReason } from "./TriggerTypes";
 
 /** How often daily times are checked. Fine enough that a backup is at most this late. */
 export const DAILY_CHECK_MS = 20_000;
+/** How often the scheduler asks whether a deep verify is due (a cheap read of one small file). */
+export const DEEP_CHECK_MS = 10 * 60_000;
 const DAILY_TIME = /^([01]\d|2[0-3]):([0-5]\d)$/;
 const MIN_INTERVAL_MIN = 1;
 
@@ -16,6 +18,12 @@ export function parseDailyTimes(times: readonly string[]): { hour: number; minut
     out.push({ hour: Number(m[1]), minute: Number(m[2]) });
   }
   return out;
+}
+
+/** Scheduled deep verify, supplied by the host (see core/DeepVerify). */
+export interface DeepVerifyJob {
+  isDue(): Promise<boolean>;
+  run(): Promise<void>;
 }
 
 /**
@@ -35,6 +43,7 @@ export class Scheduler {
   constructor(
     private readonly deps: TriggerDeps,
     private readonly host: TimerHost,
+    private readonly deepVerify?: DeepVerifyJob,
   ) {}
 
   start(): void {
@@ -52,6 +61,9 @@ export class Scheduler {
     }
     if (times.length > 0) {
       this.handles.push(this.host.setInterval(() => this.checkDaily(times), DAILY_CHECK_MS));
+    }
+    if (this.deepVerify && this.deps.getProfile().verification.scheduledDeepVerify) {
+      this.handles.push(this.host.setInterval(() => this.checkDeepVerify(), DEEP_CHECK_MS));
     }
   }
 
@@ -88,6 +100,23 @@ export class Scheduler {
         }
       }
     }
+  }
+
+  private checkDeepVerify(): void {
+    const job = this.deepVerify;
+    if (!job || this.busy) return;
+    this.busy = true;
+    job
+      .isDue()
+      .then((due) => (due ? job.run() : undefined))
+      .catch((error: unknown) => {
+        this.deps.logger.error(
+          `Scheduled deep verify failed: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      })
+      .finally(() => {
+        this.busy = false;
+      });
   }
 
   private fire(reason: TriggerReason): void {
