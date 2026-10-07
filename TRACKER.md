@@ -7,8 +7,8 @@ Priority: P1 now · P2 schedule · P3 delegate/later · P4 defer.
 ## Status
 - Current phase: 8
 - Last session: 2026-10-07
-- Next task: T-100 (T-005 awaiting MT-1)
-- Tasks done: 70 / 118
+- Next task: T-101 (T-005 awaiting MT-1)
+- Tasks done: 71 / 118
 
 ---
 
@@ -100,8 +100,8 @@ Priority: P1 now · P2 schedule · P3 delegate/later · P4 defer.
 - [x] T-095 [P1] Differential chain safety: never prune a base with live dependents | T-090 | tests
 
 ## Phase 8 — UI, settings, commands
-- [~] T-100 [P1] `ui/notify.ts` silent/errors/verbose | T-013 | —
-- [ ] T-101 [P1] `ui/StatusBar.ts` | T-047 | desktop only; mobile skipped
+- [x] T-100 [P1] `ui/notify.ts` silent/errors/verbose | T-013 | —
+- [~] T-101 [P1] `ui/StatusBar.ts` | T-047 | desktop only; mobile skipped
 - [ ] T-102 [P1] `ui/ProgressModal.ts` cancellable | T-050 | —
 - [ ] T-103 [P1] `settings/SettingsTab.ts` sections for every PLAN §7 group | T-021 | every setting reachable
 - [ ] T-104 [P1] `commands/register.ts` backup now (full/diff), restore, verify, ribbon icon | T-047,T-062,T-073 | palette entries present
@@ -243,3 +243,4 @@ _Format: `YYYY-MM-DD | tasks touched | tests added | decisions | blockers | next
 - 2026-10-07 | T-092 done | tests/core/Retention.gfs.test.ts (15: newest per day for the last D days, days WITH backups are counted so a gap erases nothing, UTC midnight split, weeks start Monday (Sunday 23:59 and Monday 00:00 differ), monthly incl. year boundary, 240-backup history keeps at most D+W+M, one gfs reason when two granularities pick the same backup, union with keep last/keep days, chain dependencies of GFS picks kept, gfsEnabled off ignored, all counts 0 switches itself off, corrupt never counted) | Retention split to stay small: core/RetentionRules.ts (KeepReason, Rule, keep-last, keep-days, GFS), core/Retention.ts (planner). GFS = restic-style keep-daily/weekly/monthly: the newest intact backup of each of the N most recent UTC day/week/month buckets that contain a backup. GFS enabled with all three counts 0 is treated as off (never prune everything). Existing retention tests unchanged and green. | — | T-093
 - 2026-10-07 | T-093 done | tests/core/Retention.size.test.ts (15: oldest first until it fits, stops exactly at the cap, 0/negative off, overrides keep-last, newest intact never removed and sizeCapUnmet reported, pinned skipped but counted, pinnedExempt off, corrupt counted never removed, only-protected-left terminates, old full removed WITH its diffs, a diff is never left without its base across caps 1..25, pinned dependent blocks the chain, newest chain protected, corrupt diff does not block removing its base, on-disk apply deletes oldest folders and updates index) | New core/RetentionSize.ts enforceSizeCap, called last in planRetention. The cap is a HARD limit: it overrides keep-last/keep-days/GFS but never the protections (newest intact, pinned when exempt, corrupt/partial). The unit of removal is a chain: removing an old full also removes every intact diff built on it, so no orphan diffs; corrupt dependents are left (and do not block). RetentionPlan.sizeCapUnmet is true when the cap cannot be met (UI T-107/T-105 can warn). Cap setting is in MB (maxFolderMb, 0 = off); UI is T-103. Note: because sizes in index are the real zip bytes, a cap smaller than one full backup can never be met. | — | T-094
 - 2026-10-07 | T-094 done | tests/core/Retention.pinned.test.ts (13: pinned exempt from keep-last, keep-days, GFS, size cap (size still counts), all rules at once, cap below the pinned size reported unmet not forced; pinnedExempt off removes the exemption, many pinned, pinned corrupt, pinned diff keeps its chain, pinned still counts toward keep-last N; engine: a pinned milestone with label survives 4 later runs and restores byte-exact, unpinning makes it eligible next run) | Behaviour already existed from T-090 (pinned reason in the planner); this task is its proof across every rule added since. Pinning itself is just BackupIndex.updateBackup(id, {pinned, label}); the UI to name and pin a milestone is T-132, the browser pin toggle T-105. The pinnedExempt setting UI is T-103. | — | T-100
+- 2026-10-07 | T-100 done | tests/ui/notify.test.ts (14: silent shows nothing even for errors, errors level = errors + warnings, verbose = all four kinds, level read live, errors get a longer timeout, a throwing show function never throws into the caller, failure() text incl. non-Error values; backupResult: success verbose-only with counts, skipped run is info, failed verification is an error at the errors level, onFailureNotify off suppresses it, pass adds nothing, forced-full and left-out-files warnings, silent shows none) | New ui/notify.ts: Notifier(show, getProfile) with error/warning/info/success, backupResult(RunResult) and failure(action, error); every message is prefixed Rewind Vault:. The Obsidian Notice is injected (ShowNotice), so ui/ stays testable; main wires (m, ms) => new Notice(m, ms) when it builds services (not done yet: no task owns the wiring, see T-082 note). Level semantics: silent = no notices at all (the log file still has everything), errors = errors and warnings, verbose = everything. Setting UI is T-103. New tests/ui folder. Process note: an earlier gated chain had hidden a lint failure behind a stale test log; I now re-run until the full chain including the test count is fresh. | — | T-101
