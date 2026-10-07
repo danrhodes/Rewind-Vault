@@ -125,6 +125,20 @@ export interface VerifyIssue {
   message: string;
 }
 
+/** What a level 6 rehearsal found when comparing a restore (in memory) with the live vault. */
+export interface RehearsalStats {
+  filesRestored: number;
+  bytesRestored: number;
+  /** Restored content identical to the live file. */
+  matchLive: number;
+  /** Live file differs and was edited since the backup (not a problem). */
+  changedSinceBackup: number;
+  /** In the backup, gone from the live vault. */
+  missingFromLive: number;
+  /** In the live vault, not in the backup. */
+  notInBackup: number;
+}
+
 export interface VerifyReport {
   backupId: string;
   level: VerifyLevel;
@@ -133,6 +147,8 @@ export interface VerifyReport {
   result: "pass" | "fail";
   entriesChecked: number;
   issues: VerifyIssue[];
+  /** Level 6 only: the outcome of the rehearsal restore. */
+  rehearsal?: RehearsalStats;
   /** Present when only a random sample of entries had their contents checked. */
   sample?: { pct: number; entriesSampled: number; entriesTotal: number };
   /** Checks that could not run (for example no passphrase for an encrypted backup). Not failures. */

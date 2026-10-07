@@ -10,6 +10,7 @@ import type { MasterKeyFn } from "./RestoreReader";
 import { checkPartContent } from "./VerifyContent";
 import { pickSample, seededRandom } from "../helpers/random";
 import { checkChain } from "./VerifyChain";
+import { rehearseRestore } from "./VerifyRehearsal";
 import { prepareKeys } from "./VerifyKeys";
 import { checkEntryParts, checkPartStructure } from "./VerifyStructure";
 
@@ -42,8 +43,8 @@ export interface VerifyOptions {
   isCancelled?: () => boolean;
 }
 
-/** Highest level this engine can run so far (1 structure, 2 CRC, 3 SHA-256, 4 decrypt + signature, 5 chain). */
-const MAX_LEVEL: VerifyLevel = 5;
+/** Highest level this engine can run so far (1 structure, 2 CRC, 3 SHA-256, 4 decrypt + signature, 5 chain, 6 rehearsal). */
+const MAX_LEVEL: VerifyLevel = 6;
 
 /**
  * Checks that a backup can be trusted. Levels are cumulative: asking for level N runs every
@@ -73,6 +74,7 @@ export class VerifyEngine {
     const issues: VerifyIssue[] = [];
     const skipped: string[] = [];
     let sampleInfo: VerifyReport["sample"];
+    let rehearsal: VerifyReport["rehearsal"];
     let entriesChecked = 0;
     const folder = `${backupFolder}/${backup.folder}`;
     const manifest = await this.readManifest(folder, issues);
@@ -145,6 +147,26 @@ export class VerifyEngine {
         entriesChecked += sub.entriesChecked;
       }
     }
+    if (options.level >= 6) {
+      const yielder = this.deps.yieldIfNeeded ?? createYielder();
+      const stats = await rehearseRestore(
+        {
+          store,
+          backupFolder,
+          profile: this.deps.getProfile(),
+          index,
+          deriveMasterKey: this.deps.deriveMasterKey,
+          tick: async () => {
+            if (isCancelled()) throw new CancelledError("Verification cancelled");
+            await yielder();
+          },
+        },
+        backupId,
+        issues,
+        skipped,
+      );
+      rehearsal = stats ?? undefined;
+    }
     if (isCancelled()) throw new CancelledError("Verification cancelled");
 
     const report: VerifyReport = {
@@ -155,6 +177,7 @@ export class VerifyEngine {
       result: issues.length === 0 ? "pass" : "fail",
       entriesChecked,
       issues,
+      ...(rehearsal ? { rehearsal } : {}),
       ...(sampleInfo ? { sample: sampleInfo } : {}),
       ...(skipped.length > 0 ? { skipped } : {}),
     };

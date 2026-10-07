@@ -182,6 +182,8 @@ describe("verify: options and errors", () => {
   it("rejects an unknown backup id and levels that do not exist yet", async () => {
     const { r, id } = await oneBackup();
     await expect(verifyEngineFor(r).verify("nope", L1)).rejects.toThrow(VerificationError);
-    await expect(verifyEngineFor(r).verify(id, { level: 6 })).rejects.toThrow(/not available/);
+    await expect(verifyEngineFor(r).verify(id, { level: 7 as never })).rejects.toThrow(
+      /not available/,
+    );
   });
 });
