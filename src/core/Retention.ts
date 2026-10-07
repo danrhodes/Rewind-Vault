@@ -1,61 +1,17 @@
 import type { BackupEntry, BackupIndex, RetentionSettings } from "../types";
 import { chainFor, countsTowardRetention, sortedBackups } from "./BackupIndex";
+import { rulesFor, type KeepReason, type RuleResult } from "./RetentionRules";
+import { enforceSizeCap } from "./RetentionSize";
 
-/** Why a backup is being kept. Shown to the user and asserted in tests. */
-export type KeepReason =
-  | "no-policy"
-  | "keep-last"
-  | "keep-days"
-  | "newest-intact"
-  | "pinned"
-  | "not-intact"
-  | "chain-dependency";
+export type { KeepReason } from "./RetentionRules";
 
 export interface RetentionPlan {
   /** Backups to delete. Always intact (status ok) and never a dependency of a kept backup. */
   prune: BackupEntry[];
   /** Every other backup with the reasons it stays. */
   keep: Map<string, KeepReason[]>;
-}
-
-interface RuleResult {
-  reason: KeepReason;
-  ids: Set<string>;
-}
-
-/**
- * A policy rule looks at the intact backups (newest first) and returns the ids it wants kept,
- * or null when the rule is switched off. Backups are kept if ANY enabled rule keeps them; if
- * every rule is off nothing is ever pruned.
- */
-type Rule = (intactNewestFirst: BackupEntry[], now: number) => RuleResult | null;
-
-/** Keep the newest N intact backups. 0 switches the rule off. */
-const keepLastRule =
-  (settings: RetentionSettings): Rule =>
-  (intact) => {
-    const n = Math.floor(settings.keepLast);
-    if (!(n > 0)) return null;
-    return { reason: "keep-last", ids: new Set(intact.slice(0, n).map((b) => b.id)) };
-  };
-
-const DAY_MS = 24 * 60 * 60 * 1000;
-
-/** Keep intact backups made within the last N days (a backup exactly N days old stays). 0 = off. */
-const keepDaysRule =
-  (settings: RetentionSettings): Rule =>
-  (intact, now) => {
-    const days = settings.keepDays;
-    if (!(days > 0)) return null;
-    const cutoff = now - days * DAY_MS;
-    return {
-      reason: "keep-days",
-      ids: new Set(intact.filter((b) => b.createdAt >= cutoff).map((b) => b.id)),
-    };
-  };
-
-function rulesFor(settings: RetentionSettings): Rule[] {
-  return [keepLastRule(settings), keepDaysRule(settings)];
+  /** True when the max-folder-size cap could not be met without breaking a protection. */
+  sizeCapUnmet: boolean;
 }
 
 function addReason(keep: Map<string, KeepReason[]>, id: string, reason: KeepReason): void {
@@ -67,7 +23,8 @@ function addReason(keep: Map<string, KeepReason[]>, id: string, reason: KeepReas
 /**
  * Decide what to prune. Pure: reads the index, returns a plan, writes nothing.
  *
- * Safety rules, applied on top of whatever the policy says:
+ * Policy rules (keep last N, keep N days, GFS) each name backups to keep; a backup stays if any
+ * enabled rule keeps it, and with no rule enabled nothing is pruned by policy. On top of that:
  * 1. The newest intact backup is never pruned, so there is always a last good backup.
  * 2. Corrupt, partial and in-progress backups are never pruned automatically. They do not count
  *    toward any limit (see `countsTowardRetention`), and the user decides what to do with them.
@@ -75,6 +32,8 @@ function addReason(keep: Map<string, KeepReason[]>, id: string, reason: KeepReas
  * 4. Every kept backup keeps its whole restore chain. A differential backup is built on the
  *    one before it, so restoring it needs the full base AND every earlier diff; none of those
  *    may be pruned while a kept backup depends on them.
+ * 5. Finally the max folder size cap removes the oldest removable backups (with their
+ *    dependents), but never anything protected by rules 1-3.
  */
 export function planRetention(
   index: BackupIndex,
@@ -85,11 +44,11 @@ export function planRetention(
   const intact = all.filter(countsTowardRetention);
   const keep = new Map<string, KeepReason[]>();
 
-  const results = rulesFor(settings).map((rule) => rule(intact, now));
-  const enabled = results.filter((r): r is RuleResult => r !== null);
+  const enabled = rulesFor(settings)
+    .map((rule) => rule(intact, now))
+    .filter((r): r is RuleResult => r !== null);
   if (enabled.length === 0) {
-    for (const b of all) addReason(keep, b.id, "no-policy");
-    return { prune: [], keep };
+    for (const b of intact) addReason(keep, b.id, "no-policy");
   }
   for (const { reason, ids } of enabled) {
     for (const id of ids) addReason(keep, id, reason);
@@ -108,5 +67,6 @@ export function planRetention(
     }
   }
 
-  return { prune: all.filter((b) => !keep.has(b.id)), keep };
+  const sizeCapUnmet = enforceSizeCap(index, keep, settings.maxFolderMb);
+  return { prune: all.filter((b) => !keep.has(b.id)), keep, sizeCapUnmet };
 }
