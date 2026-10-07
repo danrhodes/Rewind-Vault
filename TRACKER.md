@@ -7,8 +7,8 @@ Priority: P1 now · P2 schedule · P3 delegate/later · P4 defer.
 ## Status
 - Current phase: 8
 - Last session: 2026-10-07
-- Next task: T-102 (T-005 awaiting MT-1)
-- Tasks done: 72 / 118
+- Next task: T-103 (T-005 awaiting MT-1)
+- Tasks done: 73 / 118
 
 ---
 
@@ -102,8 +102,8 @@ Priority: P1 now · P2 schedule · P3 delegate/later · P4 defer.
 ## Phase 8 — UI, settings, commands
 - [x] T-100 [P1] `ui/notify.ts` silent/errors/verbose | T-013 | —
 - [x] T-101 [P1] `ui/StatusBar.ts` | T-047 | desktop only; mobile skipped
-- [ ] T-102 [P1] `ui/ProgressModal.ts` cancellable | T-050 | —
-- [ ] T-103 [P1] `settings/SettingsTab.ts` sections for every PLAN §7 group | T-021 | every setting reachable
+- [x] T-102 [P1] `ui/ProgressModal.ts` cancellable | T-050 | —
+- [~] T-103 [P1] `settings/SettingsTab.ts` sections for every PLAN §7 group | T-021 | every setting reachable
 - [ ] T-104 [P1] `commands/register.ts` backup now (full/diff), restore, verify, ribbon icon | T-047,T-062,T-073 | palette entries present
 - [ ] T-105 [P1] `ui/BackupBrowserModal.ts` list, search, pin, delete, verify | T-046 | —
 - [ ] T-106 [P1] `ui/RestorePreviewModal.ts` with selective checkboxes | T-062 | —
@@ -166,6 +166,7 @@ _Items needing a real Obsidian runtime or device. Format: `MT-n | device | what 
 MT-1 | GitHub | Push branch, confirm the CI workflow (typecheck, lint, test, build) runs green | T-005 | pending
 MT-2 | Obsidian desktop + mobile | Copy manifest.json + main.js into a test vault, enable the plugin: it loads without error, and backup/log.txt receives "Rewind Vault loaded" (checks AdapterVaultStore against the real DataAdapter) | T-024 | pending
 MT-3 | Obsidian desktop | Enable backup on close with a small vault, quit Obsidian: does a new backup folder appear? Either way no half-made folder and no stale lock should remain | T-085 | pending
+MT-4 | Obsidian desktop + mobile | Start a backup of a larger vault with the progress dialog: bar and text update, Cancel stops the run and leaves no partial backup, closing the dialog with Esc hides it without cancelling | T-102 | pending
 
 ## Ideas Parking Lot
 _Out-of-plan ideas. Do not build until promoted to a task._
@@ -245,3 +246,4 @@ _Format: `YYYY-MM-DD | tasks touched | tests added | decisions | blockers | next
 - 2026-10-07 | T-094 done | tests/core/Retention.pinned.test.ts (13: pinned exempt from keep-last, keep-days, GFS, size cap (size still counts), all rules at once, cap below the pinned size reported unmet not forced; pinnedExempt off removes the exemption, many pinned, pinned corrupt, pinned diff keeps its chain, pinned still counts toward keep-last N; engine: a pinned milestone with label survives 4 later runs and restores byte-exact, unpinning makes it eligible next run) | Behaviour already existed from T-090 (pinned reason in the planner); this task is its proof across every rule added since. Pinning itself is just BackupIndex.updateBackup(id, {pinned, label}); the UI to name and pin a milestone is T-132, the browser pin toggle T-105. The pinnedExempt setting UI is T-103. | — | T-100
 - 2026-10-07 | T-100 done | tests/ui/notify.test.ts (14: silent shows nothing even for errors, errors level = errors + warnings, verbose = all four kinds, level read live, errors get a longer timeout, a throwing show function never throws into the caller, failure() text incl. non-Error values; backupResult: success verbose-only with counts, skipped run is info, failed verification is an error at the errors level, onFailureNotify off suppresses it, pass adds nothing, forced-full and left-out-files warnings, silent shows none) | New ui/notify.ts: Notifier(show, getProfile) with error/warning/info/success, backupResult(RunResult) and failure(action, error); every message is prefixed Rewind Vault:. The Obsidian Notice is injected (ShowNotice), so ui/ stays testable; main wires (m, ms) => new Notice(m, ms) when it builds services (not done yet: no task owns the wiring, see T-082 note). Level semantics: silent = no notices at all (the log file still has everything), errors = errors and warnings, verbose = everything. Setting UI is T-103. New tests/ui folder. Process note: an earlier gated chain had hidden a lint failure behind a stale test log; I now re-run until the full chain including the test count is fresh. | — | T-101
 - 2026-10-07 | T-101 done | tests/ui/StatusBar.test.ts (10: formatAgo boundaries, no backup yet then 5 min ago and it ages on refresh(), each progress phase and percentage clamps/0 total, failure text, item created once and reused, NEVER created on mobile, not created while the setting is off, toggling the setting removes then re-adds the item, unchanged text is not rewritten, dispose then update recreates) | New ui/StatusBar.ts: StatusBar({platform, clock, getProfile, createItem}) with setIdle(lastBackupAt)/setProgress(RunProgress)/setError()/refresh()/dispose(). Item exists only when platform.isDesktop AND notifications.statusBar; the setting is re-read on every update. StatusBarItem {setText, remove} wraps Obsidian addStatusBarItem() in main (wiring pending, see earlier notes). The host should call refresh() on a timer (about once a minute) so the ago text stays current, and feed setProgress from the run onProgress hook. Setting UI is T-103. Session total: T-092, T-093, T-094, T-100, T-101; 863 tests passing. | — | T-102
+- 2026-10-07 | T-102 done | tests/ui/progressModel.test.ts (15: backup progress text, fraction by bytes with fallback to files and indeterminate, clamped 0..1, part n of m, singular wording, scanning/verifying/finalizing, restore snapshot/writing/deleting, current file, CancelSource flag/bare-function use/one-shot listeners, RenderThrottle interval and reset) | Pattern for all Obsidian UI from here: a PURE view-model file that is unit tested (ui/progressModel.ts) plus a thin Obsidian shell that only draws it (ui/ProgressModal.ts, extends Modal; verified only by typecheck/build, real rendering is MT-4). CancelSource is the shared flag: pass .isCancelled to RunOptions/RestoreControl, the Cancel button calls cancel(). Closing the dialog (Esc/X) only hides it and does NOT cancel the operation; only the Cancel button does. After cancel the button is disabled with a note, since the engines stop at the next poll point (between files/parts). RenderThrottle (100 ms) keeps per-file progress from flooding the DOM. No settings added. | — | T-103
