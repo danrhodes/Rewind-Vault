@@ -1,7 +1,6 @@
 import { ENCRYPTION } from "../constants";
+import { bufferSource } from "../helpers/bytes";
 import { ConfigError, CryptoError } from "../helpers/errors";
-
-const bufferSource = (data: Uint8Array): BufferSource => data as BufferSource;
 
 export function generateSalt(bytes: number = ENCRYPTION.saltBytes): Uint8Array {
   return crypto.getRandomValues(new Uint8Array(bytes));
