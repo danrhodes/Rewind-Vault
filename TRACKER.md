@@ -14,7 +14,7 @@ Priority: P1 now · P2 schedule · P3 delegate/later · P4 defer.
 
 ## Phase 0 — Scaffold
 - [x] T-001 [P1] Init repo, `package.json`, tsconfig strict, esbuild, vitest, eslint, prettier | — | all 4 scripts run green on empty project
-- [ ] T-002 [P1] `manifest.json` (id `rewind-vault`, name "Rewind Vault", `isDesktopOnly:false`), `versions.json`, `main.ts` stub that loads/unloads | T-001 | builds `main.js`; id has no "obsidian"
+- [x] T-002 [P1] `manifest.json` (id `rewind-vault`, name "Rewind Vault", `isDesktopOnly:false`), `versions.json`, `main.ts` stub that loads/unloads | T-001 | builds `main.js`; id has no "obsidian"
 - [ ] T-003 [P1] Folder skeleton per PLAN §4 with empty index files | T-001 | structure matches plan
 - [ ] T-004 [P1] Mock layer: `MockVaultStore`, `MockClock`, `MockLogger` in `tests/mocks` | T-003 | used by one passing sample test
 - [ ] T-005 [P2] CI workflow: typecheck, lint, test, build | T-001 | green on push
@@ -153,6 +153,8 @@ Priority: P1 now · P2 schedule · P3 delegate/later · P4 defer.
 | Date | Decision | Reason |
 |------|----------|--------|
 | 2026-10-07 | Plugin name: Rewind Vault. id: `rewind-vault`. Command prefix: "Rewind Vault:". Backup folder default stays `backup/`. | Owner choice. Collision check passed (owner-verified). |
+| 2026-10-07 | Default exports allowed only in `src/main.ts` (Obsidian requires the plugin class as default export) and `*.config.ts` (tool requirement). ESLint enforces elsewhere. | Resolves CLAUDE.md "no default exports" vs. Obsidian entry contract. |
+| 2026-10-07 | `obsidian` added as devDependency (types only; not bundled). Runtime deps remain `fflate` only. | PLAN §5 forbids extra runtime deps; devDep does not violate. |
 
 ## Blockers
 _None._
@@ -166,3 +168,4 @@ _Out-of-plan ideas. Do not build until promoted to a task._
 ## Session Log (append only)
 _Format: `YYYY-MM-DD | tasks touched | tests added | decisions | blockers | next`._
 - 2026-10-07 | T-001 done | none (vitest runs with --passWithNoTests; first test lands in T-004) | Placeholder src/main.ts so typecheck/build have an entry; T-002 replaces it. Prettier ignores *.md so spec files stay untouched. | — | T-002
+- 2026-10-07 | T-002 done | none (stub has no logic; build verified to emit CJS with default Plugin export) | Added `obsidian` as devDependency (types only, external in bundle). | — | T-003
