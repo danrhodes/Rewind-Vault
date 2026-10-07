@@ -7,8 +7,8 @@ Priority: P1 now · P2 schedule · P3 delegate/later · P4 defer.
 ## Status
 - Current phase: 2
 - Last session: 2026-10-07
-- Next task: T-023 (T-005 awaiting MT-1)
-- Tasks done: 16 / 118
+- Next task: T-032 (T-005 awaiting MT-1)
+- Tasks done: 21 / 118
 
 ---
 
@@ -38,7 +38,7 @@ Priority: P1 now · P2 schedule · P3 delegate/later · P4 defer.
 
 ## Phase 2 — Crypto
 - [x] T-030 [P1] `crypto/hash.ts` streaming SHA-256 | T-016 | known-vector tests
-- [ ] T-031 [P1] `crypto/kdf.ts` PBKDF2 ≥600k, salt gen | T-010 | vector tests; iterations configurable
+- [x] T-031 [P1] `crypto/kdf.ts` PBKDF2 ≥600k, salt gen | T-010 | vector tests; iterations configurable
 - [ ] T-032 [P1] `crypto/cipher.ts` AES-256-GCM chunked encrypt/decrypt | T-031 | round-trip; tamper fails; wrong key fails
 - [ ] T-033 [P2] `crypto/sign.ts` HMAC manifest signing | T-031 | tamper detection test
 - [ ] T-034 [P2] Session passphrase cache + prompt-on-demand service | T-031 | cleared on unload
@@ -189,3 +189,4 @@ _Format: `YYYY-MM-DD | tasks touched | tests added | decisions | blockers | next
 - 2026-10-07 | T-024 done | tests/services.test.ts (4) | Services = store, logger, clock, platform, settings, getProfile(), saveSettings(). main.ts now loads+migrates settings and builds services (lifecycle only). Default logger writes to <backupFolder>/log.txt, level debug only when notifications.level is verbose. Real-runtime load check queued as MT-2. | — | T-020
 - 2026-10-07 | T-020 done | tests/storage/FreeSpace.test.ts (7) | Free space comes from navigator.storage.estimate() (browser quota, a hint not true disk space) and the check PASSES when unknown so backups are never blocked by a missing API. Estimate assumes 60% compression (level>0). minFreeMb reserve is added on top; T-052 wires it into the engine. Phase 1 complete. | — | T-030
 - 2026-10-07 | T-030 done | tests/crypto/hash.test.ts (11: NIST vectors incl. 1M-a, all split sizes, 0-200 byte lengths vs Web Crypto, async streams) | Hand-written incremental SHA-256 (class Sha256) because Web Crypto digest() cannot stream. No new dependency. Test references use Web Crypto, not node:crypto, so src/tests stay free of Node typings. Also toHex/fromHex here. | — | T-031
+- 2026-10-07 | T-031 done | tests/crypto/kdf.test.ts (10: published PBKDF2-SHA256 vectors c=1,2,4096 and dkLen 40) | Two layers: pbkdf2Sha256 (raw, no policy, for vectors) and deriveKeyBytes (enforces >=600k iterations, rejects empty passphrase). Iterations are configurable above the floor. Session total: T-023, T-024, T-020, T-030, T-031; 116 tests passing. Coverage % not yet measured (PLAN wants >=85% in core/crypto); add a coverage script before Phase 3. | — | T-032
