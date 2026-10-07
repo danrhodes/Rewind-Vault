@@ -65,6 +65,16 @@ export interface RestoreFolderRequest {
   overwrite?: boolean;
 }
 
+export interface RestoreFilesRequest {
+  source: RestoreSource;
+  /** Vault-relative paths as they were in the backup. Every one must exist in it. */
+  paths: string[];
+  /** Defaults to the restore folder. */
+  destination?: RestoreDestination;
+  /** Required to replace a file that differs at the destination. */
+  overwrite?: boolean;
+}
+
 export interface RestoreVaultRequest {
   source: RestoreSource;
   /** Defaults to the restore folder: the live vault is untouched unless `vault` is chosen. */
@@ -167,6 +177,24 @@ export class RestoreEngine {
         `Folder "${request.path}" has no files in backup ${preview.source.id}`,
       );
     }
+    return executeRestore(ctx, plan, { overwrite: request.overwrite, ...control });
+  }
+
+  /**
+   * Restore an explicit selection of files (the restore preview's checkboxes). Nothing outside
+   * the selection is written or deleted. A selected file that differs at the destination is
+   * only replaced with `overwrite`; if any would be and it is not set, nothing is written.
+   */
+  async restoreFiles(
+    request: RestoreFilesRequest,
+    control: RestoreControl = {},
+  ): Promise<RestoreBatchResult> {
+    const ctx = this.context();
+    const plan = await planRestore(ctx, {
+      source: request.source,
+      scope: { kind: "files", paths: request.paths },
+      destination: request.destination ?? { kind: "restore-folder" },
+    });
     return executeRestore(ctx, plan, { overwrite: request.overwrite, ...control });
   }
 

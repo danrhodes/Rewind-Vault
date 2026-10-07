@@ -16,7 +16,7 @@ export interface BrowserHost {
   admin(): BackupAdmin;
   verify(backupId: string): Promise<void>;
   /** Open the restore dialog for this backup. */
-  restore(backupId: string): void;
+  restore(backupId: string, createdAt: number): void;
   confirm(
     title: string,
     message: string,
@@ -104,10 +104,15 @@ export class BackupBrowserModal extends Modal {
       const button = buttons.createEl("button", { text: label, cls: warn ? "mod-warning" : "" });
       button.addEventListener("click", () => void onClick());
     };
-    add("Restore", () => this.host.restore(row.id));
+    add("Restore", () => this.restoreRow(row));
     add("Verify", () => this.host.verify(row.id));
     add(row.pinned ? "Unpin" : "Pin", () => this.togglePin(row));
     add("Delete", () => this.remove(row), true);
+  }
+
+  private restoreRow(row: BackupRow): void {
+    const entry = this.index.backups.find((b) => b.id === row.id);
+    if (entry) this.host.restore(entry.id, entry.createdAt);
   }
 
   private async togglePin(row: BackupRow): Promise<void> {

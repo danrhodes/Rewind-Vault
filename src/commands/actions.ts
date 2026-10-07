@@ -1,5 +1,6 @@
 import { loadIndex, sortedBackups } from "../core/BackupIndex";
 import type { BackupEngine } from "../core/BackupEngine";
+import type { RestoreProgress } from "../core/RestoreTypes";
 import type { RunOptions, RunProgress } from "../core/RunTypes";
 import { runOptionsForStyle } from "../core/RunStyle";
 import type { VerifyOptions } from "../core/VerifyEngine";
@@ -13,7 +14,31 @@ import { CancelSource } from "../ui/progressModel";
 /** A progress dialog the action can update and close. Implemented by ProgressModal in main. */
 export interface ProgressHandle {
   updateBackup(progress: RunProgress): void;
+  updateRestore(progress: RestoreProgress): void;
   close(): void;
+}
+
+/**
+ * One operation at a time across backups, verification and restores. Shared by Actions and
+ * RestoreActions so a restore cannot start in the middle of a backup (and vice versa).
+ */
+export class BusyFlag {
+  private busy = false;
+
+  get isBusy(): boolean {
+    return this.busy;
+  }
+
+  /** True if the caller now owns the flag and must `release()` it. */
+  tryAcquire(): boolean {
+    if (this.busy) return false;
+    this.busy = true;
+    return true;
+  }
+
+  release(): void {
+    this.busy = false;
+  }
 }
 
 export interface ProgressUi {
@@ -45,12 +70,13 @@ const describe = (error: unknown): string =>
  * Every outcome (done, cancelled, busy, failed) ends in a notice, never an unhandled error.
  */
 export class Actions {
-  private busy = false;
-
-  constructor(private readonly deps: ActionDeps) {}
+  constructor(
+    private readonly deps: ActionDeps,
+    private readonly flag: BusyFlag = new BusyFlag(),
+  ) {}
 
   get isBusy(): boolean {
-    return this.busy;
+    return this.flag.isBusy;
   }
 
   /** "Backup now": the configured automatic style, or differential when that is "off". */
@@ -109,7 +135,7 @@ export class Actions {
     } catch (error) {
       this.reportFailure("Verification", error);
     } finally {
-      this.busy = false;
+      this.flag.release();
     }
   }
 
@@ -144,16 +170,15 @@ export class Actions {
       this.reportFailure("Backup", error);
     } finally {
       handle.close();
-      this.busy = false;
+      this.flag.release();
     }
   }
 
   private acquire(): boolean {
-    if (this.busy) {
+    if (!this.flag.tryAcquire()) {
       this.deps.notifier.warning("Another Rewind Vault operation is already running.");
       return false;
     }
-    this.busy = true;
     return true;
   }
 

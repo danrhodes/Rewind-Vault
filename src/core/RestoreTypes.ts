@@ -8,7 +8,11 @@ import type { RestoreSource } from "./ChainResolver";
 import type { MasterKeyFn } from "./RestoreReader";
 
 export type RestoreScope =
-  { kind: "all" } | { kind: "file"; path: string } | { kind: "folder"; path: string };
+  | { kind: "all" }
+  | { kind: "file"; path: string }
+  | { kind: "folder"; path: string }
+  /** An explicit selection of files (the restore preview's checkboxes). */
+  | { kind: "files"; paths: string[] };
 
 /**
  * Where restored files go. The restore folder is the safe default: files land in
@@ -101,13 +105,32 @@ export function destinationPath(root: string, path: string): string {
 
 export function normaliseScope(scope: RestoreScope): RestoreScope {
   if (scope.kind === "all") return scope;
+  if (scope.kind === "files") {
+    if (scope.paths.length === 0) throw new RestoreError("No files were selected to restore");
+    for (const path of scope.paths) {
+      if (!isSafeRelPath(path)) throw new RestoreError(`"${path}" is not a valid vault path`);
+    }
+    return { kind: "files", paths: [...new Set(scope.paths)].sort() };
+  }
   const path = scope.path.replace(/\/+$/, "");
   if (!isSafeRelPath(path)) throw new RestoreError(`"${scope.path}" is not a valid vault path`);
   return { kind: scope.kind, path };
 }
 
+/** A selection can hold tens of thousands of paths: look them up in a set, built once per scope. */
+const pathSets = new WeakMap<object, ReadonlySet<string>>();
+function pathSet(scope: { kind: "files"; paths: string[] }): ReadonlySet<string> {
+  let set = pathSets.get(scope);
+  if (!set) {
+    set = new Set(scope.paths);
+    pathSets.set(scope, set);
+  }
+  return set;
+}
+
 export function inScope(scope: RestoreScope, path: string): boolean {
   if (scope.kind === "all") return true;
   if (scope.kind === "file") return path === scope.path;
+  if (scope.kind === "files") return pathSet(scope).has(path);
   return isInsideFolder(path, scope.path) && path !== scope.path;
 }

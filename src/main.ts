@@ -1,5 +1,6 @@
 import { Notice, Platform, Plugin } from "obsidian";
-import { Actions } from "./commands/actions";
+import { Actions, BusyFlag } from "./commands/actions";
+import { RestoreActions } from "./commands/restoreActions";
 import { buildCommands } from "./commands/definitions";
 import { registerCommands } from "./commands/register";
 import { createPlatform } from "./helpers/platform";
@@ -9,6 +10,7 @@ import { RewindVaultSettingTab } from "./settings/SettingsTab";
 import { AdapterVaultStore } from "./storage/VaultStore";
 import { loadIndex } from "./core/BackupIndex";
 import { BackupBrowserModal } from "./ui/BackupBrowserModal";
+import { RestorePreviewModal } from "./ui/RestorePreviewModal";
 import { ConfirmModal } from "./ui/ConfirmModal";
 import { createProgressUi } from "./ui/progressHost";
 
@@ -36,15 +38,31 @@ export default class RewindVaultPlugin extends Plugin {
       }),
     );
 
-    const actions = new Actions({
-      store: services.store,
-      logger: services.logger,
-      backup: services.backup,
-      verifyBackup: services.verifyBackup,
-      notifier: services.notifier,
-      getProfile: services.getProfile,
-      progress: createProgressUi(this.app),
-    });
+    const busy = new BusyFlag();
+    const progress = createProgressUi(this.app);
+    const confirm = (title: string, message: string, label: string, dangerous: boolean) =>
+      new ConfirmModal(this.app, title, message, label, dangerous).ask();
+    const restoreActions = new RestoreActions(
+      {
+        restore: services.restore,
+        notifier: services.notifier,
+        logger: services.logger,
+        progress,
+      },
+      busy,
+    );
+    const actions = new Actions(
+      {
+        store: services.store,
+        logger: services.logger,
+        backup: services.backup,
+        verifyBackup: services.verifyBackup,
+        notifier: services.notifier,
+        getProfile: services.getProfile,
+        progress,
+      },
+      busy,
+    );
     const commands = buildCommands(actions, {
       openBackupBrowser: () =>
         new BackupBrowserModal(this.app, {
@@ -52,10 +70,13 @@ export default class RewindVaultPlugin extends Plugin {
             loadIndex(services.store, services.getProfile().destination.backupFolder),
           admin: () => services.admin(),
           verify: (id) => actions.verifyById(id, 3),
-          // The restore dialog arrives in a later task.
-          restore: () => services.notifier.info("The restore dialog is not available yet."),
-          confirm: (title, message, label, dangerous) =>
-            new ConfirmModal(this.app, title, message, label, dangerous).ask(),
+          restore: (id, createdAt) =>
+            new RestorePreviewModal(this.app, id, createdAt, {
+              actions: restoreActions,
+              snapshotEnabled: () => services.getProfile().safety.preRestoreSnapshot,
+              confirm,
+            }).open(),
+          confirm,
           notifier: services.notifier,
         }).open(),
     });

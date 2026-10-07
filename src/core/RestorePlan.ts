@@ -72,6 +72,13 @@ export async function planRestore(
   if (scope.kind === "file" && wanted.length === 0) {
     throw new RestoreError(`"${scope.path}" is not in backup ${chain.target.id}`);
   }
+  if (scope.kind === "files") {
+    const found = new Set(wanted.map((f) => f.path));
+    const missing = scope.paths.find((p) => !found.has(p));
+    if (missing !== undefined) {
+      throw new RestoreError(`"${missing}" is not in backup ${chain.target.id}`);
+    }
+  }
   await assertPartsPresent(ctx, wanted);
 
   const root = destinationRoot(ctx, request, chain.target.id);
@@ -108,7 +115,12 @@ export async function planRestore(
     await ctx.yieldIfNeeded();
   }
 
-  if (request.deleteExtraneous && request.destination.kind === "vault" && scope.kind !== "file") {
+  if (
+    request.deleteExtraneous &&
+    request.destination.kind === "vault" &&
+    scope.kind !== "file" &&
+    scope.kind !== "files"
+  ) {
     const keep = new Set(wanted.map((f) => f.path));
     const live = await scanVault(store, scanOptionsFromProfile(ctx.profile), ctx.yieldIfNeeded);
     preview.deletions = live.map((f) => f.path).filter((p) => inScope(scope, p) && !keep.has(p));

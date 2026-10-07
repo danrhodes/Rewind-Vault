@@ -52,6 +52,7 @@ export function harness(
         opened.push(record);
         const handle: ProgressHandle = {
           updateBackup: (p) => record.updates.push(p),
+          updateRestore: () => undefined,
           close: () => {
             record.closed = true;
           },

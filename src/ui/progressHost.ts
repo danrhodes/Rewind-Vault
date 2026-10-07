@@ -10,6 +10,7 @@ export function createProgressUi(app: App): ProgressUi {
       modal.open();
       return {
         updateBackup: (progress) => modal.updateBackup(progress),
+        updateRestore: (progress) => modal.updateRestore(progress),
         close: () => modal.finish(),
       };
     },
