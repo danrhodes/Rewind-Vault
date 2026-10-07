@@ -1,4 +1,4 @@
-import { RestoreError } from "../helpers/errors";
+import { RestoreError, RewindError } from "../helpers/errors";
 import { writeAtomic } from "../storage/AtomicWriter";
 import type { ResolvedFile } from "./ChainResolver";
 import type { RestorePlan } from "./RestorePlan";
@@ -13,6 +13,8 @@ export interface RestoreBatchResult {
   replaced: number;
   unchanged: number;
   deleted: number;
+  /** Pre-restore snapshot: its backup id, "up-to-date" if the latest backup already matched, absent if none was needed. */
+  snapshot?: string;
   bytesWritten: number;
 }
 
@@ -28,6 +30,30 @@ function groupByPart(files: ResolvedFile[]): ResolvedFile[][] {
     groups.set(key, [...(groups.get(key) ?? []), f]);
   }
   return [...groups.values()];
+}
+
+/** Back up the live vault before it is changed. A restore never proceeds without it. */
+async function takeSnapshot(ctx: RestoreContext): Promise<string> {
+  if (!ctx.safetySnapshot) {
+    throw new RestoreError(
+      "A safety snapshot is required before restoring into the vault, but none is available. " +
+        "Nothing was written. (It can be turned off in settings: Safety > pre-restore snapshot.)",
+    );
+  }
+  try {
+    const snap = await ctx.safetySnapshot();
+    ctx.logger.info(
+      snap
+        ? `Pre-restore snapshot ${snap.backupId}`
+        : "Pre-restore snapshot not needed: up to date",
+    );
+    return snap?.backupId ?? "up-to-date";
+  } catch (error) {
+    if (error instanceof RewindError && error.code === "cancelled") throw error;
+    throw new RestoreError("The safety snapshot failed, so nothing was restored", {
+      cause: error,
+    });
+  }
 }
 
 /**
@@ -63,6 +89,14 @@ export async function executeRestore(
     deleted: 0,
     bytesWritten: 0,
   };
+
+  if (
+    preview.destinationRoot === "" &&
+    plan.toWrite.length + preview.deletions.length > 0 &&
+    ctx.profile.safety.preRestoreSnapshot
+  ) {
+    result.snapshot = await takeSnapshot(ctx);
+  }
 
   for (const group of groupByPart(plan.toWrite)) {
     for await (const { file, data } of readFilesFromPart(

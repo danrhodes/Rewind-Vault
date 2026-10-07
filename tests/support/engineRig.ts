@@ -1,5 +1,5 @@
 import { BackupEngine, type EngineDeps } from "../../src/core/BackupEngine";
-import { RestoreEngine } from "../../src/core/RestoreEngine";
+import { RestoreEngine, type RestoreDeps } from "../../src/core/RestoreEngine";
 import type { CompletedResult, RunOptions } from "../../src/core/RunTypes";
 import { createDefaultProfile } from "../../src/settings/defaults";
 import type { SettingsProfile } from "../../src/types";
@@ -70,13 +70,21 @@ export async function runOk(engine: BackupEngine, options: RunOptions): Promise<
   return result;
 }
 
-/** A RestoreEngine sharing the rig's store, clock, logger and profile. */
-export function restoreEngineFor(r: Rig): RestoreEngine {
+/**
+ * A RestoreEngine sharing the rig's store, clock, logger and profile. Its safety snapshot is a
+ * real differential backup by the rig's BackupEngine; pass `extra` to replace any dependency.
+ */
+export function restoreEngineFor(r: Rig, extra: Partial<RestoreDeps> = {}): RestoreEngine {
   return new RestoreEngine({
     store: r.store,
     logger: r.logger,
     clock: r.clock,
     getProfile: () => r.profile,
     yieldIfNeeded: async () => undefined,
+    safetySnapshot: async () => {
+      const res = await r.engine.run({ mode: "diff" });
+      return res.status === "completed" ? { backupId: res.backupId } : null;
+    },
+    ...extra,
   });
 }

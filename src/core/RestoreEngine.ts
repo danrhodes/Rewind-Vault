@@ -12,6 +12,7 @@ import {
   destinationPath,
   type RestoreContext,
   RestoreDestination,
+  SafetySnapshotFn,
   RestorePreview,
   RestoreRequest,
 } from "./RestoreTypes";
@@ -34,6 +35,8 @@ export interface RestoreDeps {
   yieldIfNeeded?: () => Promise<void>;
   /** Needed only to restore from encrypted backups. Wired to PassphraseService.getKey. */
   deriveMasterKey?: MasterKeyFn;
+  /** Runs a backup of the live vault; required to restore into the vault unless the setting is off. */
+  safetySnapshot?: SafetySnapshotFn;
 }
 
 export interface RestoreFileRequest {
@@ -90,6 +93,7 @@ export class RestoreEngine {
       backupFolder: profile.destination.backupFolder,
       yieldIfNeeded: this.deps.yieldIfNeeded ?? createYielder(),
       deriveMasterKey: this.deps.deriveMasterKey,
+      safetySnapshot: this.deps.safetySnapshot,
     };
   }
 

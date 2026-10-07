@@ -54,6 +54,12 @@ export interface RestorePreview {
   bytesToWrite: number;
 }
 
+/**
+ * Takes a backup of the live vault right now. Resolves to the new backup's id, or null when
+ * the latest backup already matches the vault (nothing changed). Rejects if it fails.
+ */
+export type SafetySnapshotFn = () => Promise<{ backupId: string } | null>;
+
 /** What the restore code needs from the engine. */
 export interface RestoreContext {
   store: IVaultStore;
@@ -62,6 +68,7 @@ export interface RestoreContext {
   backupFolder: string;
   yieldIfNeeded: () => Promise<void>;
   deriveMasterKey?: MasterKeyFn;
+  safetySnapshot?: SafetySnapshotFn;
 }
 
 /** Where a vault-relative path ends up for a destination. */
