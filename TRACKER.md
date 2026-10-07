@@ -33,7 +33,7 @@ Priority: P1 now · P2 schedule · P3 delegate/later · P4 defer.
 - [ ] T-020 [P2] `storage/FreeSpace.ts` estimate + precheck | T-018 | tests
 - [x] T-021 [P1] `settings/defaults.ts` full defaults, desktop + mobile profiles | T-010 | typed against Settings
 - [x] T-022 [P1] `settings/profiles.ts` resolveProfile(platform) | T-021,T-017 | tests
-- [ ] T-023 [P1] `settings/migrate.ts` | T-021 | old → new fixture tests
+- [x] T-023 [P1] `settings/migrate.ts` | T-021 | old → new fixture tests
 - [ ] T-024 [P1] `services.ts` DI container | T-018,T-013 | main wires it
 
 ## Phase 2 — Crypto
@@ -184,3 +184,4 @@ _Format: `YYYY-MM-DD | tasks touched | tests added | decisions | blockers | next
 - 2026-10-07 | T-019 done | tests/storage/AtomicWriter.test.ts (10, crash injected at each of the 4 mutating steps) | Replace protocol: write .tmp, verify size, old->.bak, tmp->target, delete .bak; recoverAtomic restores .bak if target missing, else clears leftovers (called automatically before each write; call on startup for index/state/manifest files too). | — | T-021
 - 2026-10-07 | T-021 done | tests/settings/defaults.test.ts (4) | Defaults: differential auto-style, startup+resume triggers on, interval on for desktop only, verify L2, keep last 10, mass-change guard on, encryption off. Mobile: 1000 files/50 MB zips, 256 KB chunks, 20% battery floor, no status bar. NOTE: Basic.includeHidden and Exclusions.excludeHidden overlap (both from PLAN section 7); Scanner (T-040) must define precedence: hidden files are included only if includeHidden && !excludeHidden. | — | T-022
 - 2026-10-07 | T-022 done | tests/settings/profiles.test.ts (5) | resolveProfile returns a deep copy and forces desktop-only options off on mobile (external destination, on-close trigger, status bar). Session total: T-017, T-018, T-019, T-021, T-022; 77 tests passing. | — | T-023 (T-020 is P2, deferred until P1s in phase 1 are done)
+- 2026-10-07 | T-023 done | tests/settings/migrate.test.ts (7) | migrateSettings: merge-over-defaults (unknown keys dropped, wrong types fall back), range clamps, KDF iterations floored at 600k, v0 (flat profile) -> v1 (desktop/mobile) step. v0 shape is my reconstruction of a pre-profile layout; no released version ever wrote it. | — | T-024
