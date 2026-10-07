@@ -161,4 +161,4 @@ Bug reports and ideas are welcome as GitHub issues.
 
 ## License
 
-MIT
+[MIT](LICENSE) © 2026 Dan Rhodes
