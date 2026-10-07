@@ -109,7 +109,7 @@ function corruptPartOnWrite(r: Rig): void {
 }
 
 describe("auto-verify finds a bad backup", () => {
-  it("reports the failure, records it, logs an error and still returns the completed run", async () => {
+  it("reports the failure, records it, logs an error marks it corrupt and still returns the completed run", async () => {
     const r = rig(withLevel("L2"));
     await seedVault(r.store, 10);
     corruptPartOnWrite(r);
@@ -122,8 +122,8 @@ describe("auto-verify finds a bad backup", () => {
     expect(
       r.logger.entries.some((e) => e.level === "error" && /FAILED verification/.test(e.message)),
     ).toBe(true);
-    // Marking the backup corrupt is T-074; until then the index still lists it as ok.
-    expect((await loadIndex(r.store, "backup")).backups[0]?.status).toBe("ok");
+    // Marked corrupt in the index (T-074; the transitions are tested in BackupEngine.failure).
+    expect((await loadIndex(r.store, "backup")).backups[0]?.status).toBe("corrupt");
   });
 
   it("with verification off the same damage goes unnoticed (why the default is on)", async () => {

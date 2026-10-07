@@ -89,7 +89,17 @@ function reasonForFull(input: PlanInput): string | null {
   if (input.requested === "full") return null;
   if (input.state === null) return "the saved file state is unreadable";
   if (input.state.updatedAt === 0) return "there is no previous backup state";
-  if (latestFullBase(input.index) === null) return "there is no intact full backup to build on";
+  const base = input.index.backups.find((b) => b.id === latestFullBase(input.index));
+  if (!base) return "there is no intact full backup to build on";
+  // A backup newer than the base that failed verification sits in the chain a new differential
+  // would extend (or is a failed full): it would never be restorable, and the saved file state
+  // assumes its contents are safely stored. Start again from a full backup.
+  if (
+    input.profile.verification.onFailureForceFull &&
+    input.index.backups.some((b) => b.status === "corrupt" && b.createdAt >= base.createdAt)
+  ) {
+    return "a recent backup failed verification";
+  }
   return null;
 }
 

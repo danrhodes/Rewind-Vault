@@ -182,7 +182,6 @@ export class BackupEngine {
           onPart: () => lock.refresh(),
         },
         plan.id,
-        createdFolder,
       );
       return verification ? { ...result, verification } : result;
     } catch (error) {

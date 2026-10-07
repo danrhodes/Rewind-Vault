@@ -125,6 +125,14 @@ export function removeBackup(index: BackupIndex, id: string): BackupIndex {
   return { ...index, backups: index.backups.filter((b) => b.id !== id) };
 }
 
+/**
+ * Only intact backups count toward retention limits (keep last N, GFS, size): a corrupt backup
+ * is neither kept as one of the N nor allowed to push a good one out.
+ */
+export function countsTowardRetention(entry: BackupEntry): boolean {
+  return entry.status === "ok";
+}
+
 /** Newest first. Ties (same second) fall back to id so the order is stable. */
 export function sortedBackups(index: BackupIndex): BackupEntry[] {
   return [...index.backups].sort((a, b) => b.createdAt - a.createdAt || (a.id < b.id ? 1 : -1));

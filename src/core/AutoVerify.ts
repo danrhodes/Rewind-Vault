@@ -3,7 +3,7 @@ import type { ILogger } from "../helpers/logger";
 import type { IClock } from "../helpers/time";
 import type { IVaultStore } from "../storage/VaultStore";
 import type { AutoVerifyLevel, SettingsProfile, VerifyLevel, VerifyReport } from "../types";
-import { loadManifest, saveManifest } from "./Manifest";
+import { recordVerification } from "./BackupFailure";
 import type { MasterKeyFn } from "./RestoreReader";
 import { VerifyEngine } from "./VerifyEngine";
 
@@ -32,15 +32,14 @@ export interface AutoVerifyDeps {
 }
 
 /**
- * Verify a backup that has just been written, at the level the settings choose, and note the
- * outcome in its manifest (`verify`, which the manifest signature deliberately excludes).
+ * Verify a backup that has just been written, at the level the settings choose, and record
+ * the outcome (manifest `verify`; a failure also marks the backup corrupt, see BackupFailure).
  * Returns null when verification is off, was cancelled, or could not run: the backup itself is
  * already complete and valid, so a problem here is logged and never fails the run.
  */
 export async function autoVerifyBackup(
   deps: AutoVerifyDeps,
   backupId: string,
-  folderPath: string,
 ): Promise<VerifyReport | null> {
   const level = autoVerifyLevel(deps.profile.verification.autoVerify);
   if (level === null) return null;
@@ -72,9 +71,12 @@ export async function autoVerifyBackup(
   }
 
   try {
-    const manifest = await loadManifest(deps.store, folderPath);
-    manifest.verify = { lastLevel: level, lastAt: report.finishedAt, result: report.result };
-    await saveManifest(deps.store, folderPath, manifest);
+    await recordVerification(
+      deps.store,
+      deps.profile.destination.backupFolder,
+      report,
+      deps.logger,
+    );
   } catch (error) {
     deps.logger.warn(
       `Verified backup ${backupId} but could not record the result: ${error instanceof Error ? error.message : String(error)}`,
