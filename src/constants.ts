@@ -19,6 +19,7 @@ export const FILE_NAMES = {
   lock: "lock.json",
   checkpoint: "checkpoint.json",
   deepVerify: "deep-verify.json",
+  plugins: "plugins.json",
   log: "log.txt",
   manifest: "manifest.json",
   tempSuffix: ".tmp",
@@ -46,4 +47,15 @@ export const LIMITS = {
   compressionLevelMax: 9,
   defaultLockTimeoutMin: 30,
   defaultLogCapKb: 512,
+} as const;
+
+/** Pre-risk snapshot rules (setting: safety.preRiskSnapshots). */
+export const PRE_RISK = {
+  /** Different files deleted or renamed within the window that count as a bulk operation. */
+  bulkCount: 10,
+  bulkWindowSec: 30,
+  /** Quiet time after a snapshot so one bulk operation gives one snapshot. */
+  cooldownMin: 30,
+  /** How often the plugin folder is read for installs and updates. */
+  pluginCheckMin: 10,
 } as const;

@@ -1,6 +1,7 @@
 import type { IPlatform } from "../helpers/platform";
 import { CloseTrigger, type CloseEvents } from "./CloseTrigger";
 import { EventTrigger, type VaultEvents } from "./EventTrigger";
+import { PreRiskTrigger, type PluginChecker } from "./PreRiskTrigger";
 import { ResumeTrigger } from "./ResumeTrigger";
 import { Scheduler, type DeepVerifyJob } from "./Scheduler";
 import { StartupTrigger } from "./StartupTrigger";
@@ -17,6 +18,8 @@ export interface TriggerManagerDeps {
   whenReady: (callback: () => void) => void;
   lastBackupAt: () => Promise<number | null>;
   deepVerify?: DeepVerifyJob;
+  /** Reports installed or updated plugins; omit to snapshot only before bulk deletes/renames. */
+  plugins?: PluginChecker;
 }
 
 /**
@@ -30,6 +33,7 @@ export class TriggerManager {
   private readonly resume: ResumeTrigger;
   private readonly events: EventTrigger;
   private readonly close: CloseTrigger;
+  private readonly preRisk: PreRiskTrigger;
   private started = false;
 
   constructor(private readonly deps: TriggerManagerDeps) {
@@ -39,6 +43,7 @@ export class TriggerManager {
     this.resume = new ResumeTrigger(triggers, platform, { lastBackupAt: deps.lastBackupAt });
     this.events = new EventTrigger(triggers, timers, deps.events);
     this.close = new CloseTrigger(triggers, platform, deps.close);
+    this.preRisk = new PreRiskTrigger(triggers, timers, deps.events, deps.plugins ?? null);
   }
 
   get isStarted(): boolean {
@@ -52,6 +57,7 @@ export class TriggerManager {
     this.resume.start();
     this.events.start();
     this.close.start();
+    this.preRisk.start(this.deps.whenReady);
   }
 
   /** Call after settings change: re-reads interval, daily times and deep verify. */
@@ -66,5 +72,6 @@ export class TriggerManager {
     this.resume.stop();
     this.events.stop();
     this.close.stop();
+    this.preRisk.stop();
   }
 }

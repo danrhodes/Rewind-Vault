@@ -67,6 +67,14 @@ describe("createAutoBackup", () => {
     expect(t.isHeld()).toBe(false);
   });
 
+  it("takes a pre-risk snapshot as a differential run even when the style is off or full", async () => {
+    for (const style of ["off", "full"] as const) {
+      const t = setup({ style });
+      await t.run("pre-risk");
+      expect(t.engineRun.mock.calls[0]?.[0]).toMatchObject({ mode: "diff" });
+    }
+  });
+
   it("does nothing when the automatic style is off", async () => {
     const t = setup({ style: "off" });
     await t.run("interval");

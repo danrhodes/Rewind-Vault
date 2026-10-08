@@ -13,7 +13,8 @@ export type TriggerReason =
   | "create"
   | "delete"
   | "rename"
-  | "close";
+  | "close"
+  | "pre-risk";
 
 /**
  * What a trigger calls when it decides a backup is due. The caller (wired in main/services)

@@ -2,6 +2,7 @@ import type { Plugin } from "obsidian";
 import type { BusyFlag } from "./commands/actions";
 import { loadIndex, sortedBackups } from "./core/BackupIndex";
 import { MassChangeGuard } from "./core/MassChangeGuard";
+import { PluginWatch } from "./core/PluginWatch";
 import { isDeepVerifyDue, runDeepVerify } from "./core/DeepVerify";
 import { isInsideFolder } from "./helpers/glob";
 import { createNetworkProbe } from "./helpers/network";
@@ -115,7 +116,12 @@ export function createAutomation(plugin: Plugin, services: Services, busy: BusyF
     status,
     hold: () => (massGuard.isTripped ? `mass change guard: ${massChange.summary()}` : null),
   });
-  const guard = new RunGuard({ clock, logger, run });
+  const guard = new RunGuard({
+    clock,
+    logger,
+    run,
+    bypassCooldown: ["close", "pre-risk"],
+  });
 
   const vaultEvents = createVaultEvents(plugin.app);
   const manager = new TriggerManager({
@@ -126,6 +132,13 @@ export function createAutomation(plugin: Plugin, services: Services, busy: BusyF
     close: createCloseEvents(),
     whenReady: (callback) => plugin.app.workspace.onLayoutReady(callback),
     lastBackupAt,
+    plugins: new PluginWatch({
+      store,
+      logger,
+      configDir: plugin.app.vault.configDir,
+      backupFolder: () => getProfile().destination.backupFolder,
+      selfId: plugin.manifest.id,
+    }),
     deepVerify: {
       isDue: () => isDeepVerifyDue(services.verifyDeps),
       run: async () => {

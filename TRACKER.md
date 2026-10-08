@@ -7,8 +7,8 @@ Priority: P1 now · P2 schedule · P3 delegate/later · P4 defer.
 ## Status
 - Current phase: 8
 - Last session: 2026-10-08
-- Next task: T-121 (T-005 awaiting MT-1)
-- Tasks done: 84 / 118
+- Next task: T-122 (T-005 awaiting MT-1)
+- Tasks done: 85 / 118
 
 ---
 
@@ -116,7 +116,7 @@ Priority: P1 now · P2 schedule · P3 delegate/later · P4 defer.
 
 ## Phase 9 — Safety extras
 - [x] T-120 [P1] `MassChangeGuard` pause on >N changes in M s | T-042 | threshold tests; protects last good backup
-- [ ] T-121 [P2] Pre-risk snapshots (plugin update, bulk delete/rename) | T-120 | —
+- [x] T-121 [P2] Pre-risk snapshots (plugin update, bulk delete/rename) | T-120 | —
 - [ ] T-122 [P2] Failure alert: daily-note append (optional) | T-100 | —
 - [ ] T-123 [P2] Sync-conflict file detector | T-040 | flags `conflicted copy` patterns
 - [ ] T-124 [P2] Desktop external copy (`ExternalCopy.ts`) | T-047 | platform-guarded; mobile build has no `fs`
@@ -180,6 +180,7 @@ MT-12 | Obsidian desktop + mobile | Copy settings as a link on one device, Impor
 MT-13 | Obsidian desktop + mobile | Copy settings as a passphrase-protected link, import on another device: passphrase dialog appears (twice on copy, once on import), wrong passphrase gives a notice and changes nothing. Also: with encryption on and no stored passphrase, a backup shows the Backup passphrase dialog and Cancel stops the run cleanly | T-110 | pending
 MT-14 | Obsidian desktop + mobile | Run Reset backup state: confirm dialog, then Back up now makes a full backup even with no edits, and old backups are all still listed | T-111 | pending
 MT-15 | Obsidian desktop + mobile | Set mass-change threshold to 5 in 60 s, then bulk-edit or rename 10 notes: an error notice appears, the status bar shows failure, automatic backups stop (log says held back) while Back up now still works; "Resume automatic backups" asks for confirmation and re-enables them. Restoring into the restore folder or running a backup must NOT trip it | T-120 | pending
+MT-16 | Obsidian desktop | Pre-risk snapshots: delete or rename 12 notes within 30 s and confirm one new differential backup appears (log says Bulk delete or rename detected); update or install another community plugin and within 10 min (or on next start) a backup appears and backup/plugins.json lists its version; with the setting off, neither happens | T-121 | pending
 
 ## Ideas Parking Lot
 _Out-of-plan ideas. Do not build until promoted to a task._
@@ -273,3 +274,4 @@ _Format: `YYYY-MM-DD | tasks touched | tests added | decisions | blockers | next
 - 2026-10-08 | T-110 done | tests/settings/protect.test.ts (6: round trip, fresh salt, wrong passphrase reported, altered data detected, short passphrase / non-link / damaged link rejected, forged iteration counts refused) and 3 more in tests/commands/settingsActions.test.ts (protected copy + import, wrong passphrase imports nothing, cancelled prompt) | Interpreted "settings passphrase protection" as an optional passphrase on the exported settings link (see Decisions). settings/protect.ts: AES-256-GCM, PBKDF2-SHA256 at 600k+, random salt, link `rewind-vault://settings-protected/...`; import accepts both kinds and asks for the passphrase when needed. New ui/PassphraseModal.ts (also supplies the missing services.promptPassphrase, so prompt-on-demand encryption now works in the plugin). Third palette command: Copy settings as a passphrase-protected link. | Needs owner confirmation that this is the intended meaning | T-111
 - 2026-10-08 | T-111 done | tests/core/BackupAdmin.reset.test.ts (4: state cleared and backups kept, next diff becomes a full even with no changes and later diffs resume, works with no backups, refused under the lock) and tests/commands/maintenanceActions.test.ts (5: reset after confirm, declined, failure reported, refused while busy, palette command) | BackupAdmin.resetState writes an empty state (updatedAt 0) under the backup lock; the planner already forces a full on that. Command "Reset backup state (next backup will be full)" asks for confirmation and shares the BusyFlag. | — | T-120
 - 2026-10-08 | T-120 done | tests/core/MassChangeGuard.test.ts (7: trips only above the threshold, one file counts once per window, old changes forgotten, steady stream trips, single alert and stays tripped until released, disabled clears it, limits read live), 1 in tests/triggers/AutoBackup.test.ts (held back, busy flag untouched), 3 in tests/commands/maintenanceActions.test.ts (resume after confirm / declined / not paused) | core/MassChangeGuard counts DIFFERENT changed files inside the window (create/modify/delete/rename events, from automation.ts); backup and restore folders and anything during a running backup/restore are ignored. Tripped = automatic backups held (AutoBackup.hold), error notice + status bar error; manual Back up now still works. Release via command "Resume automatic backups (after a mass-change pause)". The pause lives in memory only, so a restart clears it (kept simple; persisting it is an idea, parked). Settings already in the tab from T-103. | — | T-121
+- 2026-10-08 | T-121 done | tests/core/PluginWatch.test.ts (8), tests/core/BulkChangeDetector.test.ts (4), tests/triggers/PreRiskTrigger.test.ts (11), 1 in AutoBackup.test.ts (pre-risk is always a differential run), TriggerManager test updated for the extra listeners | A snapshot is taken (reason "pre-risk", bypasses the run-guard cooldown, still subject to conditions and the mass-change guard) when (a) 10+ different files are deleted or renamed within 30 s (constants PRE_RISK; backup/restore folders ignored so pruning cannot trigger it) or (b) another plugin was installed or updated: core/PluginWatch compares `<configDir>/plugins/*/manifest.json` versions with `<backupFolder>/plugins.json`, checked when the app is ready and every 10 min, because Obsidian emits no vault events for the config folder. Plugin changes are detected after the fact, so the snapshot captures the vault right after the update, not before it; the first check only records. Setting safety.preRiskSnapshots already existed in the tab. | — | T-122

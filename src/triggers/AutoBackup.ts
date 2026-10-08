@@ -31,7 +31,12 @@ export interface AutoBackupDeps {
 export function createAutoBackup(deps: AutoBackupDeps): RunRequest {
   return async (reason) => {
     const { logger, notifier, status } = deps;
-    const options = runOptionsForStyle(deps.getProfile().basic.autoStyle);
+    // A pre-risk snapshot is always a differential run, whatever the automatic style says
+    // (even "off": the safety setting is separate).
+    const options =
+      reason === "pre-risk"
+        ? ({ mode: "diff" } as const)
+        : runOptionsForStyle(deps.getProfile().basic.autoStyle);
     if (!options) {
       logger.debug(`Automatic backup ("${reason}") ignored: automatic style is off`);
       return;
