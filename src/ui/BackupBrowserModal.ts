@@ -20,6 +20,8 @@ export interface BrowserHost {
   restore(backupId: string, createdAt: number): void;
   /** Ask for a name (milestone label); null when cancelled. */
   askName(title: string, message: string): Promise<string | null>;
+  /** Rebuild a damaged backup from its recovery records. */
+  repair(backupId: string): Promise<void>;
   /** Open the comparison with the live vault for this backup. */
   compare(backupId: string, createdAt: number): void;
   confirm(
@@ -111,6 +113,7 @@ export class BackupBrowserModal extends Modal {
     };
     add("Restore", () => this.restoreRow(row));
     add("Compare", () => this.compareRow(row));
+    if (row.status === "corrupt") add("Repair", () => this.repairRow(row));
     add("Verify", () => this.host.verify(row.id));
     add(row.pinned ? "Unpin" : "Pin", () => this.togglePin(row));
     add("Delete", () => this.remove(row), true);
@@ -119,6 +122,11 @@ export class BackupBrowserModal extends Modal {
   private restoreRow(row: BackupRow): void {
     const entry = this.index.backups.find((b) => b.id === row.id);
     if (entry) this.host.restore(entry.id, entry.createdAt);
+  }
+
+  private async repairRow(row: BackupRow): Promise<void> {
+    await this.host.repair(row.id);
+    await this.reload();
   }
 
   private compareRow(row: BackupRow): void {

@@ -27,6 +27,8 @@ export interface ZipSettings {
   maxOutputZipMb: number;
   /** 0-9. */
   compressionLevel: number;
+  /** Extra recovery data per ZIP part, as a percent of its size (0 = off, max 50). */
+  recoveryPercent: number;
 }
 
 export interface TriggerSettings {

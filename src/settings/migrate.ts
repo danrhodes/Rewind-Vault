@@ -38,6 +38,7 @@ function sanitizeProfile(p: SettingsProfile): SettingsProfile {
   p.zip.compressionLevel = Math.round(
     clamp(p.zip.compressionLevel, LIMITS.compressionLevelMin, LIMITS.compressionLevelMax),
   );
+  p.zip.recoveryPercent = Math.round(clamp(p.zip.recoveryPercent, 0, 50));
   p.encryption.kdfIterations = Math.max(p.encryption.kdfIterations, ENCRYPTION.minIterations);
   p.retention.keepLast = Math.max(1, Math.round(p.retention.keepLast));
   p.verification.samplingPct = clamp(p.verification.samplingPct, 0, 100);

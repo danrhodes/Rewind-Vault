@@ -1,3 +1,4 @@
+import { RECOVERY_SUFFIX, buildRecord } from "./RecoveryRecord";
 import { ENCRYPTION, SCHEMA_VERSION } from "../constants";
 import { signManifest } from "../crypto/sign";
 import type { IClock } from "../helpers/time";
@@ -109,6 +110,10 @@ export async function executePlan(ctx: ExecContext): Promise<CompletedResult> {
 
     const name = partName(parts.length + 1);
     await writeAtomic(store, `${folderPath}/${name}`, part.data);
+    if (profile.zip.recoveryPercent > 0) {
+      const record = await buildRecord(part.data, profile.zip.recoveryPercent, ctx.yieldIfNeeded);
+      if (record) await writeAtomic(store, `${folderPath}/${name}${RECOVERY_SUFFIX}`, record);
+    }
     parts.push({
       name,
       size: part.data.length,

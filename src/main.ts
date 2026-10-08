@@ -139,6 +139,7 @@ export default class RewindVaultPlugin extends Plugin {
               loadIndex(services.store, services.getProfile().destination.backupFolder),
             admin: () => services.admin(),
             askName,
+            repair: (id) => maintenance.repairBackup(id),
             verify: (id) => actions.verifyById(id, 3),
             restore: (id, createdAt) =>
               new RestorePreviewModal(this.app, id, createdAt, {

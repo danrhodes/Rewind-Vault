@@ -13,6 +13,7 @@ import {
   saveIndex,
   updateBackup,
 } from "./BackupIndex";
+import { repairBackup, type RepairReport } from "./Repair";
 import { saveState } from "./BackupState";
 import { emptyState } from "./Differ";
 import { LockManager, type LockOptions } from "./LockManager";
@@ -86,6 +87,21 @@ export class BackupAdmin {
     } finally {
       await lock.release();
     }
+  }
+
+  /** Rebuild damaged parts of a backup from their recovery records (see Repair.ts). */
+  repairBackup(id: string): Promise<RepairReport> {
+    return this.withLock(() =>
+      repairBackup(
+        {
+          store: this.deps.store,
+          logger: this.deps.logger,
+          clock: this.deps.clock,
+          backupFolder: this.deps.backupFolder,
+        },
+        id,
+      ),
+    );
   }
 
   /**

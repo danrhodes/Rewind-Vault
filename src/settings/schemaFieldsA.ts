@@ -138,4 +138,14 @@ export const FIELDS_A: readonly FieldDef[] = [
     min: LIMITS.compressionLevelMin,
     max: LIMITS.compressionLevelMax,
   },
+  {
+    group: "zip",
+    key: "recoveryPercent",
+    kind: "number",
+    name: "Recovery data",
+    desc: "Stores extra repair data next to each ZIP part, this many percent of its size, so a part damaged on disk or by a sync tool can be rebuilt (Repair in Browse backups). 0 turns it off. Costs that much extra space and some backup time.",
+    min: 0,
+    max: 50,
+    unit: "%",
+  },
 ];

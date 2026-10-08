@@ -1,4 +1,5 @@
 import type { BackupAdmin } from "../core/BackupAdmin";
+import type { RepairReport } from "../core/Repair";
 import type { Notifier } from "../ui/notify";
 import type { BusyFlag } from "./actions";
 import type { CommandDef } from "./definitions";
@@ -41,6 +42,24 @@ export class MaintenanceActions {
     if (!ok) return;
     massChange.release();
     notifier.success("Automatic backups resumed.");
+  }
+
+  /** Rebuild a damaged backup from its recovery records and say what happened. */
+  async repairBackup(backupId: string): Promise<void> {
+    const { notifier, busy } = this.deps;
+    if (!busy.tryAcquire()) {
+      notifier.warning("Another Rewind Vault operation is already running.");
+      return;
+    }
+    try {
+      const report = await this.deps.admin().repairBackup(backupId);
+      await this.deps.refreshStatusNote();
+      describeRepair(report, notifier);
+    } catch (error) {
+      notifier.failure("Repairing the backup", error);
+    } finally {
+      busy.release();
+    }
   }
 
   async updateStatusNote(): Promise<void> {
@@ -95,4 +114,24 @@ export function buildMaintenanceCommands(actions: MaintenanceActions): CommandDe
       run: () => actions.resumeAfterMassChange(),
     },
   ];
+}
+
+function describeRepair(report: RepairReport, notifier: Notifier): void {
+  if (report.failed.length > 0) {
+    const first = report.failed[0];
+    notifier.error(
+      `Could not repair ${report.failed.length} part(s) of ${report.backupId}: ${first?.part}: ${first?.reason}.`,
+    );
+    return;
+  }
+  if (report.repaired.length === 0) {
+    notifier.info("Nothing needed repairing: every part already matches its checksum.");
+    return;
+  }
+  const parts = `${report.repaired.length} part(s) rebuilt`;
+  notifier.success(
+    report.healed
+      ? `${parts}. The backup is intact again.`
+      : `${parts}. Run Verify to check the backup.`,
+  );
 }

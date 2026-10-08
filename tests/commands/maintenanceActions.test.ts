@@ -7,10 +7,19 @@ import {
 import { createDefaultProfile } from "../../src/settings/defaults";
 import { Notifier } from "../../src/ui/notify";
 
+let repairResult: unknown = {
+  backupId: "B1",
+  repaired: [],
+  intact: ["p"],
+  failed: [],
+  healed: false,
+};
+
 function setup(answer = true, fail = false, paused = false, noteWritten = true) {
   const profile = createDefaultProfile("desktop");
   profile.notifications.level = "verbose";
   const notices: string[] = [];
+  const repairBackup = vi.fn(async (): Promise<unknown> => repairResult);
   const resetState = vi.fn(async () => {
     if (fail) throw new Error("locked");
   });
@@ -24,7 +33,7 @@ function setup(answer = true, fail = false, paused = false, noteWritten = true) 
     }),
   };
   const actions = new MaintenanceActions({
-    admin: () => ({ resetState }) as never,
+    admin: () => ({ resetState, repairBackup }) as never,
     confirm: async () => answer,
     notifier: new Notifier(
       (m) => notices.push(m),
@@ -34,7 +43,7 @@ function setup(answer = true, fail = false, paused = false, noteWritten = true) 
     massChange,
     refreshStatusNote: async () => noteWritten,
   });
-  return { actions, resetState, notices, busy, massChange };
+  return { actions, resetState, repairBackup, notices, busy, massChange };
 }
 
 describe("MaintenanceActions.resetState", () => {
@@ -112,5 +121,47 @@ describe("MaintenanceActions.updateStatusNote", () => {
     const t = setup(true, false, false, false);
     await t.actions.updateStatusNote();
     expect(t.notices.join()).toContain("off or could not be written");
+  });
+});
+
+describe("MaintenanceActions.repairBackup", () => {
+  const report = (extra: object) => ({
+    backupId: "B1",
+    repaired: [],
+    intact: [],
+    failed: [],
+    healed: false,
+    ...extra,
+  });
+
+  it("says when the backup is intact and when it was repaired", async () => {
+    repairResult = report({ intact: ["p"] });
+    const a = setup();
+    await a.actions.repairBackup("B1");
+    expect(a.notices.join()).toContain("Nothing needed repairing");
+    repairResult = report({ repaired: ["part-001.zip"], healed: true });
+    const b = setup();
+    await b.actions.repairBackup("B1");
+    expect(b.notices.join()).toContain("intact again");
+    expect(b.busy.isBusy).toBe(false);
+  });
+
+  it("reports parts that could not be repaired as an error", async () => {
+    repairResult = report({ failed: [{ part: "part-001.zip", reason: "too much damage" }] });
+    const t = setup();
+    await t.actions.repairBackup("B1");
+    expect(t.notices.join()).toContain("part-001.zip: too much damage");
+  });
+
+  it("is refused while busy, and a failure is reported", async () => {
+    const t = setup();
+    t.busy.tryAcquire();
+    await t.actions.repairBackup("B1");
+    expect(t.repairBackup).not.toHaveBeenCalled();
+    t.busy.release();
+    repairResult = null;
+    t.repairBackup.mockRejectedValueOnce(new Error("locked"));
+    await t.actions.repairBackup("B1");
+    expect(t.notices.join()).toContain("locked");
   });
 });

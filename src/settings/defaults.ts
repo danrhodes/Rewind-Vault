@@ -29,6 +29,7 @@ function baseProfile(): SettingsProfile {
       processOverMax: true,
       maxOutputZipMb: 500,
       compressionLevel: 6,
+      recoveryPercent: 0,
     },
     triggers: {
       onStartup: true,
