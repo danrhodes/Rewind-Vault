@@ -16,6 +16,8 @@ export interface SettingsActionDeps {
   ): Promise<boolean>;
   /** Ask for a passphrase; null when cancelled. `repeat` asks for it twice (setting a new one). */
   askPassphrase(title: string, message: string, repeat: boolean): Promise<string | null>;
+  /** The "protect copied settings with a passphrase" setting, read each time. */
+  protectCopies(): boolean;
   save(): Promise<void>;
   /** Tell triggers and the status bar to re-read the settings. */
   onChanged(): void;
@@ -27,6 +29,7 @@ export class SettingsActions {
   constructor(private readonly deps: SettingsActionDeps) {}
 
   async copyLink(): Promise<void> {
+    if (this.deps.protectCopies()) return this.copyProtectedLink();
     const { notifier } = this.deps;
     try {
       await this.deps.clipboard.write(exportSettings(this.deps.settings));

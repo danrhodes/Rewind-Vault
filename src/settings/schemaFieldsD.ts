@@ -165,6 +165,13 @@ export const FIELDS_D: readonly FieldDef[] = [
   // ---- Misc ----
   {
     group: "misc",
+    key: "settingsPassphraseEnabled",
+    kind: "toggle",
+    name: "Protect copied settings with a passphrase",
+    desc: '"Copy settings as a link" then asks for a passphrase and encrypts the link, so it is safe to send. Your backup passphrase is never included.',
+  },
+  {
+    group: "misc",
     key: "lowMemoryMode",
     kind: "toggle",
     name: "Low-memory mode",

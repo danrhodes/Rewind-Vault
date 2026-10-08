@@ -96,6 +96,7 @@ export default class RewindVaultPlugin extends Plugin {
       confirm,
       askPassphrase: (title, message, repeat) =>
         new PassphraseModal(this.app, title, message, repeat).ask(),
+      protectCopies: () => services.getProfile().misc.settingsPassphraseEnabled,
       save: () => this.saveData(settings),
       onChanged: () => automation.settingsChanged(),
       notifier: services.notifier,

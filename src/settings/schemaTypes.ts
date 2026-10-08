@@ -72,8 +72,6 @@ export type FieldDef = ToggleField | NumberField | TextField | DropdownField | L
 export const LINKED: Readonly<Record<string, string>> = {
   "triggers.onStartup": "basic.backupOnStartup",
 };
-export const DEFERRED: Readonly<Record<string, string>> = {
-  "misc.settingsPassphraseEnabled": "T-110 (settings passphrase protection)",
-};
+export const DEFERRED: Readonly<Record<string, string>> = {};
 
 export const fieldId = (def: { group: string; key: string }): string => `${def.group}.${def.key}`;

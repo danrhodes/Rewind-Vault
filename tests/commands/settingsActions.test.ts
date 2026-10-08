@@ -5,7 +5,12 @@ import { isProtectedLink, protectLink } from "../../src/settings/protect";
 import { exportSettings } from "../../src/settings/transfer";
 import { Notifier } from "../../src/ui/notify";
 
-function setup(clipboardText = "", answer = true, passphrase: string | null = null) {
+function setup(
+  clipboardText = "",
+  answer = true,
+  passphrase: string | null = null,
+  protect = false,
+) {
   const settings = createDefaultSettings();
   settings.desktop.encryption.passphrase = "local";
   const notices: string[] = [];
@@ -24,6 +29,7 @@ function setup(clipboardText = "", answer = true, passphrase: string | null = nu
       log.asked++;
       return answer;
     },
+    protectCopies: () => protect,
     askPassphrase: async () => {
       log.passphraseAsked++;
       return passphrase;
@@ -110,6 +116,19 @@ describe("SettingsActions", () => {
     const receiver = setup(protectedText, true, null);
     await receiver.actions.importFromClipboard();
     expect(receiver.log).toMatchObject({ asked: 0, saved: 0 });
+  });
+
+  it("copies a protected link from the plain command when the setting is on", async () => {
+    const t = setup("", true, "long enough pass", true);
+    await t.actions.copyLink();
+    expect(isProtectedLink(t.log.written)).toBe(true);
+    expect(t.log.passphraseAsked).toBe(1);
+  });
+
+  it("copies nothing when the setting is on and the passphrase prompt is cancelled", async () => {
+    const t = setup("", true, null, true);
+    await t.actions.copyLink();
+    expect(t.log.written).toBe("");
   });
 
   it("offers three palette commands", () => {
