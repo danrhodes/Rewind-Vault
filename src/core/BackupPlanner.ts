@@ -1,3 +1,4 @@
+import { findConflictFiles, type ConflictFile } from "./ConflictDetector";
 import { generateSalt } from "../crypto/kdf";
 import { toBase64 } from "../helpers/bytes";
 import { backupFolderName } from "../helpers/time";
@@ -59,6 +60,8 @@ export interface PlanOutcome {
   plan: RunPlan;
   /** Differential run in which nothing was added, changed or deleted. */
   noChanges: boolean;
+  /** Sync-conflict copies found in the vault (they are backed up like any other file). */
+  conflicts: ConflictFile[];
 }
 
 /** A folder name that does not exist yet. Bumps the timestamp by whole seconds if needed. */
@@ -157,5 +160,5 @@ export async function planBackup(input: PlanInput): Promise<PlanOutcome> {
     forcedFullReason,
     totalBytes: split.parts.flat().reduce((n, f) => n + f.size, 0),
   };
-  return { plan, noChanges };
+  return { plan, noChanges, conflicts: findConflictFiles(files.map((f) => f.path)) };
 }

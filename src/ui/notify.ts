@@ -83,6 +83,14 @@ export class Notifier {
     if (result.skippedFiles.length > 0) {
       this.warning(`${result.skippedFiles.length} file(s) were left out. See the log for details.`);
     }
+    const conflicts = result.conflictFiles ?? [];
+    if (conflicts.length > 0) {
+      const first = conflicts[0]?.path ?? "";
+      this.warning(
+        `${conflicts.length} sync-conflict file(s) found in your vault (for example "${first}"). ` +
+          "They were backed up as they are. Open them, keep what you need and delete the extra copy.",
+      );
+    }
     const check = result.verification;
     if (check?.result === "fail" && this.getProfile().verification.onFailureNotify) {
       this.error(

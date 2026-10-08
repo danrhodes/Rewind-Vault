@@ -1,4 +1,5 @@
 import type { BackupType, VerifyReport } from "../types";
+import type { ConflictFile } from "./ConflictDetector";
 import type { RetentionResult } from "./RetentionApply";
 
 export type RunPhase = "scanning" | "packing" | "finalizing" | "verifying";
@@ -42,6 +43,8 @@ export interface CompletedResult {
   nonDestructive: boolean;
   /** Result of the automatic check run after the backup; absent when verification is off. */
   verification?: VerifyReport;
+  /** Sync-conflict copies seen in the vault during this run; absent when there are none. */
+  conflictFiles?: ConflictFile[];
   /** Present only when retention removed (or failed to remove) old backups after this run. */
   retention?: RetentionResult;
 }

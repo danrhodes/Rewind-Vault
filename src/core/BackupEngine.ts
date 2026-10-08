@@ -12,6 +12,7 @@ import type { BackupState, BackupType, PlatformKind, SettingsProfile } from "../
 import { findBackup, loadIndex } from "./BackupIndex";
 import { loadCheckpoint } from "./Checkpoint";
 import { executePlan, skipUnchanged, type ExecContext } from "./BackupExecutor";
+import type { ConflictFile } from "./ConflictDetector";
 import { planBackup, type RunPlan } from "./BackupPlanner";
 import { autoVerifyBackup } from "./AutoVerify";
 import { loadState } from "./BackupState";
@@ -123,6 +124,7 @@ export class BackupEngine {
       const state = await this.loadStateOrNull(backupFolder);
 
       let plan: RunPlan;
+      let conflicts: ConflictFile[] = [];
       if (resume) {
         plan = resume.plan;
       } else {
@@ -141,6 +143,12 @@ export class BackupEngine {
           return { status: "skipped", reason: "no-changes" };
         }
         plan = outcome.plan;
+        conflicts = outcome.conflicts;
+        if (conflicts.length > 0) {
+          logger.warn(
+            `${conflicts.length} sync-conflict file(s) in the vault, e.g. ${conflicts[0]?.path}`,
+          );
+        }
       }
       control.assertNotCancelled();
       this.announce(plan, resume !== null);
@@ -187,6 +195,7 @@ export class BackupEngine {
       const retention = options.nonDestructive ? null : await this.pruneOldBackups(store, profile);
       return {
         ...result,
+        ...(conflicts.length > 0 ? { conflictFiles: conflicts } : {}),
         ...(verification ? { verification } : {}),
         ...(retention ? { retention } : {}),
       };

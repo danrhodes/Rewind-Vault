@@ -162,6 +162,29 @@ describe("Notifier.backupResult", () => {
   });
 });
 
+describe("Notifier.backupResult conflicts", () => {
+  it("warns about sync-conflict files with an example, even at the errors level", () => {
+    const t = setup("errors");
+    t.notifier.backupResult(
+      result({
+        conflictFiles: [
+          { path: "A (conflicted copy 1).md", original: "A.md", originalExists: true },
+          { path: "B (conflicted copy 2).md", original: "B.md", originalExists: false },
+        ],
+      }),
+    );
+    expect(t.shown).toHaveLength(1);
+    expect(t.shown[0]?.message).toContain("2 sync-conflict file(s)");
+    expect(t.shown[0]?.message).toContain("A (conflicted copy 1).md");
+  });
+
+  it("says nothing when there are none", () => {
+    const t = setup("verbose");
+    t.notifier.backupResult(result());
+    expect(t.shown.map((s) => s.message).join()).not.toContain("conflict");
+  });
+});
+
 describe("error sink", () => {
   function withSink(level: NotificationLevel, sinkThrows = false) {
     const profile = createDefaultProfile("desktop");
