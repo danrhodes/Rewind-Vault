@@ -7,6 +7,7 @@ import type { BackupIndex, ManifestVerify, SettingsProfile } from "../types";
 import { loadIndex, sortedBackups } from "./BackupIndex";
 import { loadDeepVerifyRecord, type DeepVerifyRecord } from "./DeepVerify";
 import { loadManifest } from "./Manifest";
+import { loadRehearsalRecord, type RehearsalRecord } from "./ScheduledRehearsal";
 
 export const STATUS_NOTE_NAME = "Backup Status.md";
 /** A newest good backup older than this makes the status a warning. */
@@ -22,6 +23,7 @@ export interface StatusData {
   /** Last verification recorded on the newest backup, if any. */
   lastVerify: ManifestVerify | null;
   deepVerify: DeepVerifyRecord | null;
+  rehearsal?: RehearsalRecord | null;
   now: number;
 }
 
@@ -56,7 +58,11 @@ export function healthOf(data: StatusData): { status: HealthStatus; reasons: str
     if (status === "ok") status = "warning";
     reasons.push(`The newest good backup is more than ${STALE_AFTER_DAYS} days old.`);
   }
-  if (data.lastVerify?.result === "fail" || data.deepVerify?.result === "fail") {
+  if (
+    data.lastVerify?.result === "fail" ||
+    data.deepVerify?.result === "fail" ||
+    data.rehearsal?.result === "fail"
+  ) {
     if (status === "ok") status = "warning";
     reasons.push("The last verification failed.");
   }
@@ -104,6 +110,13 @@ export function renderStatusNote(data: StatusData): string {
     fm.push(
       `last_deep_verify: ${q(iso(data.deepVerify.lastRunAt))}`,
       `last_deep_verify_result: ${data.deepVerify.result}`,
+    );
+  }
+
+  if (data.rehearsal) {
+    fm.push(
+      `last_rehearsal: ${q(iso(data.rehearsal.lastRunAt))}`,
+      `last_rehearsal_result: ${data.rehearsal.result}`,
     );
   }
 
@@ -163,10 +176,11 @@ export async function updateStatusNote(deps: StatusNoteDeps): Promise<boolean> {
         .catch(() => null);
     }
     const deepVerify = await loadDeepVerifyRecord(deps, folder);
+    const rehearsal = await loadRehearsalRecord(deps, folder);
     await writeText(
       deps.store,
       path,
-      renderStatusNote({ index, lastVerify, deepVerify, now: deps.clock.now() }),
+      renderStatusNote({ index, lastVerify, deepVerify, rehearsal, now: deps.clock.now() }),
     );
     return true;
   } catch (error) {

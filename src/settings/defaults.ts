@@ -82,6 +82,8 @@ function baseProfile(): SettingsProfile {
       samplingPct: 10,
       scheduledDeepVerify: false,
       deepVerifyIntervalDays: 30,
+      scheduledRehearsal: false,
+      rehearsalIntervalDays: 30,
       onFailureForceFull: true,
       onFailureNotify: true,
     },

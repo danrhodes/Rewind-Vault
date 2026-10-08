@@ -241,6 +241,9 @@ export interface VerificationSettings {
   samplingPct: number;
   scheduledDeepVerify: boolean;
   deepVerifyIntervalDays: number;
+  /** Restore the newest backup in memory and compare it with the vault, on a schedule. */
+  scheduledRehearsal: boolean;
+  rehearsalIntervalDays: number;
   onFailureForceFull: boolean;
   onFailureNotify: boolean;
 }

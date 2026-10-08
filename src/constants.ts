@@ -20,6 +20,7 @@ export const FILE_NAMES = {
   checkpoint: "checkpoint.json",
   deepVerify: "deep-verify.json",
   plugins: "plugins.json",
+  rehearsal: "rehearsal.json",
   log: "log.txt",
   manifest: "manifest.json",
   tempSuffix: ".tmp",

@@ -44,6 +44,7 @@ export class Scheduler {
     private readonly deps: TriggerDeps,
     private readonly host: TimerHost,
     private readonly deepVerify?: DeepVerifyJob,
+    private readonly rehearsal?: DeepVerifyJob,
   ) {}
 
   start(): void {
@@ -63,7 +64,10 @@ export class Scheduler {
       this.handles.push(this.host.setInterval(() => this.checkDaily(times), DAILY_CHECK_MS));
     }
     if (this.deepVerify && this.deps.getProfile().verification.scheduledDeepVerify) {
-      this.handles.push(this.host.setInterval(() => this.checkDeepVerify(), DEEP_CHECK_MS));
+      this.handles.push(this.host.setInterval(() => this.checkJob(this.deepVerify), DEEP_CHECK_MS));
+    }
+    if (this.rehearsal && this.deps.getProfile().verification.scheduledRehearsal) {
+      this.handles.push(this.host.setInterval(() => this.checkJob(this.rehearsal), DEEP_CHECK_MS));
     }
   }
 
@@ -102,8 +106,8 @@ export class Scheduler {
     }
   }
 
-  private checkDeepVerify(): void {
-    const job = this.deepVerify;
+  /** Ask a scheduled check whether it is due and run it; one at a time with the backups. */
+  private checkJob(job: DeepVerifyJob | undefined): void {
     if (!job || this.busy) return;
     this.busy = true;
     job
@@ -111,7 +115,7 @@ export class Scheduler {
       .then((due) => (due ? job.run() : undefined))
       .catch((error: unknown) => {
         this.deps.logger.error(
-          `Scheduled deep verify failed: ${error instanceof Error ? error.message : String(error)}`,
+          `Scheduled check failed: ${error instanceof Error ? error.message : String(error)}`,
         );
       })
       .finally(() => {

@@ -18,6 +18,8 @@ export interface TriggerManagerDeps {
   whenReady: (callback: () => void) => void;
   lastBackupAt: () => Promise<number | null>;
   deepVerify?: DeepVerifyJob;
+  /** Scheduled restore rehearsal. */
+  rehearsal?: DeepVerifyJob;
   /** Reports installed or updated plugins; omit to snapshot only before bulk deletes/renames. */
   plugins?: PluginChecker;
 }
@@ -39,7 +41,7 @@ export class TriggerManager {
   constructor(private readonly deps: TriggerManagerDeps) {
     const { triggers, platform, timers } = deps;
     this.startup = new StartupTrigger(triggers, timers);
-    this.scheduler = new Scheduler(triggers, timers, deps.deepVerify);
+    this.scheduler = new Scheduler(triggers, timers, deps.deepVerify, deps.rehearsal);
     this.resume = new ResumeTrigger(triggers, platform, { lastBackupAt: deps.lastBackupAt });
     this.events = new EventTrigger(triggers, timers, deps.events);
     this.close = new CloseTrigger(triggers, platform, deps.close);

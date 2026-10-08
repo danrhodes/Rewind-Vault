@@ -3,6 +3,7 @@ import type { BusyFlag } from "./commands/actions";
 import { loadIndex, sortedBackups } from "./core/BackupIndex";
 import { MassChangeGuard } from "./core/MassChangeGuard";
 import { PluginWatch } from "./core/PluginWatch";
+import { isRehearsalDue, runScheduledRehearsal } from "./core/ScheduledRehearsal";
 import { isDeepVerifyDue, runDeepVerify } from "./core/DeepVerify";
 import { isInsideFolder } from "./helpers/glob";
 import { createNetworkProbe } from "./helpers/network";
@@ -139,6 +140,16 @@ export function createAutomation(plugin: Plugin, services: Services, busy: BusyF
       backupFolder: () => getProfile().destination.backupFolder,
       selfId: plugin.manifest.id,
     }),
+    rehearsal: {
+      isDue: () => isRehearsalDue(services.verifyDeps, () => canDecryptUnattended(services)),
+      run: async () => {
+        const report = await runScheduledRehearsal(services.verifyDeps);
+        await services.refreshStatusNote();
+        if (report?.result === "fail" && getProfile().verification.onFailureNotify) {
+          notifier.error(`Scheduled restore rehearsal FAILED for ${report.backupId}. See the log.`);
+        }
+      },
+    },
     deepVerify: {
       isDue: () => isDeepVerifyDue(services.verifyDeps),
       run: async () => {
@@ -176,4 +187,11 @@ export function createAutomation(plugin: Plugin, services: Services, busy: BusyF
       statusBar.dispose();
     },
   };
+}
+
+/** A passphrase is stored or already cached, so no dialog will appear. */
+function canDecryptUnattended(services: Services): boolean {
+  return (
+    services.getProfile().encryption.passphrase !== "" || services.passphrase.hasCachedPassphrase
+  );
 }
