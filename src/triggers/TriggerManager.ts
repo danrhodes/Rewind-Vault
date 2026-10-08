@@ -2,6 +2,7 @@ import type { IPlatform } from "../helpers/platform";
 import { CloseTrigger, type CloseEvents } from "./CloseTrigger";
 import { EditVolumeTrigger, type NoteReader } from "./EditVolumeTrigger";
 import { EventTrigger, type VaultEvents } from "./EventTrigger";
+import { LowBatteryTrigger } from "./LowBatteryTrigger";
 import { PreRiskTrigger, type PluginChecker } from "./PreRiskTrigger";
 import { ResumeTrigger } from "./ResumeTrigger";
 import { Scheduler, type DeepVerifyJob } from "./Scheduler";
@@ -40,6 +41,7 @@ export class TriggerManager {
   private readonly close: CloseTrigger;
   private readonly editVolume: EditVolumeTrigger | null;
   private readonly preRisk: PreRiskTrigger;
+  private readonly lowBattery: LowBatteryTrigger;
   private started = false;
 
   constructor(private readonly deps: TriggerManagerDeps) {
@@ -52,6 +54,7 @@ export class TriggerManager {
     this.editVolume = deps.readNote
       ? new EditVolumeTrigger(triggers, timers, deps.events, deps.readNote)
       : null;
+    this.lowBattery = new LowBatteryTrigger(triggers, timers, platform);
     this.preRisk = new PreRiskTrigger(triggers, timers, deps.events, deps.plugins ?? null);
   }
 
@@ -68,6 +71,7 @@ export class TriggerManager {
     this.editVolume?.start();
     this.close.start();
     this.preRisk.start(this.deps.whenReady);
+    this.lowBattery.start();
   }
 
   /** Call after settings change: re-reads interval, daily times and deep verify. */
@@ -84,5 +88,6 @@ export class TriggerManager {
     this.editVolume?.stop();
     this.close.stop();
     this.preRisk.stop();
+    this.lowBattery.stop();
   }
 }

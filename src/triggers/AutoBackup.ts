@@ -6,12 +6,12 @@ import type { BackupStatusSink } from "../ui/StatusBar";
 import type { Notifier } from "../ui/notify";
 import type { SettingsProfile } from "../types";
 import type { ConditionResult } from "./Conditions";
-import type { RunRequest } from "./TriggerTypes";
+import type { RunRequest, TriggerReason } from "./TriggerTypes";
 
 export interface AutoBackupDeps {
   backup: Pick<BackupEngine, "run">;
   /** Battery, Wi-Fi, free space and no-change checks (see Conditions.ts). */
-  conditions: () => Promise<ConditionResult>;
+  conditions: (reason: TriggerReason) => Promise<ConditionResult>;
   notifier: Notifier;
   logger: ILogger;
   getProfile: () => SettingsProfile;
@@ -34,7 +34,7 @@ export function createAutoBackup(deps: AutoBackupDeps): RunRequest {
     // A pre-risk snapshot is always a differential run, whatever the automatic style says
     // (even "off": the safety setting is separate).
     const options =
-      reason === "pre-risk"
+      reason === "pre-risk" || reason === "low-battery"
         ? ({ mode: "diff" } as const)
         : runOptionsForStyle(deps.getProfile().basic.autoStyle);
     if (!options) {
@@ -52,7 +52,7 @@ export function createAutoBackup(deps: AutoBackupDeps): RunRequest {
     }
     let ok = true;
     try {
-      if (!(await deps.conditions()).ok) return;
+      if (!(await deps.conditions(reason)).ok) return;
       logger.info(`Automatic backup started (${reason})`);
       const result = await deps.backup.run({ ...options, onProgress: (p) => status?.progress(p) });
       notifier.backupResult(result);

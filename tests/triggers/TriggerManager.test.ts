@@ -76,7 +76,7 @@ describe("TriggerManager", () => {
     const t = setup((p) => (p.triggers.onClose = true));
     t.manager.start();
     expect(t.manager.isStarted).toBe(true);
-    expect(t.platform.listenerCount).toBe(1); // resume
+    expect(t.platform.listenerCount).toBe(2); // resume + low battery
     expect(t.listenerTotal()).toBe(6); // 4 edit events + delete/rename for pre-risk
     expect(t.closeListeners.size).toBe(1);
     t.ready();

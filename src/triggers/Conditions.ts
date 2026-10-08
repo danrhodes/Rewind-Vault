@@ -32,6 +32,8 @@ export interface ConditionDeps {
   freeSpace?: IFreeSpaceProbe;
   network?: INetworkProbe;
   yieldIfNeeded?: () => Promise<void>;
+  /** Skip the minimum-battery check (the low-battery flush runs precisely because it is low). */
+  ignoreBattery?: boolean;
 }
 
 /**
@@ -46,7 +48,7 @@ export async function evaluateConditions(deps: ConditionDeps): Promise<Condition
   const blocked: BlockedCondition[] = [];
   const unknown: ConditionId[] = [];
 
-  if (conditions.minBatteryPct > 0) {
+  if (conditions.minBatteryPct > 0 && !deps.ignoreBattery) {
     const battery = await deps.platform.getBattery();
     if (!battery) unknown.push("battery");
     else if (!battery.charging && battery.level < conditions.minBatteryPct) {

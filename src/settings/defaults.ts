@@ -50,6 +50,8 @@ function baseProfile(): SettingsProfile {
     },
     conditions: {
       minBatteryPct: 0,
+      lowBatteryFlush: false,
+      lowBatteryFlushPct: 10,
       skipIfNoChanges: true,
       minFreeSpaceMb: 200,
       wifiOnly: false,
@@ -126,6 +128,7 @@ function mobileProfile(): SettingsProfile {
   p.zip.maxSourceMbPerZip = 50;
   p.zip.maxOutputZipMb = 50;
   p.conditions.minBatteryPct = 20;
+  p.conditions.lowBatteryFlush = true;
   p.notifications.statusBar = false;
   p.misc.chunkSizeKb = 256;
   return p;

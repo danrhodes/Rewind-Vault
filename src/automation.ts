@@ -109,8 +109,16 @@ export function createAutomation(plugin: Plugin, services: Services, busy: BusyF
   const network = createNetworkProbe();
   const run = createAutoBackup({
     backup: services.backup,
-    conditions: () =>
-      evaluateConditions({ store, logger, platform, getProfile, freeSpace, network }),
+    conditions: (reason) =>
+      evaluateConditions({
+        store,
+        logger,
+        platform,
+        getProfile,
+        freeSpace,
+        network,
+        ignoreBattery: reason === "low-battery",
+      }),
     notifier,
     logger,
     getProfile,
@@ -122,7 +130,7 @@ export function createAutomation(plugin: Plugin, services: Services, busy: BusyF
     clock,
     logger,
     run,
-    bypassCooldown: ["close", "pre-risk"],
+    bypassCooldown: ["close", "pre-risk", "low-battery"],
   });
 
   const vaultEvents = createVaultEvents(plugin.app);

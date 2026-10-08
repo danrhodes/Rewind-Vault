@@ -42,6 +42,7 @@ function sanitizeProfile(p: SettingsProfile): SettingsProfile {
   p.retention.keepLast = Math.max(1, Math.round(p.retention.keepLast));
   p.verification.samplingPct = clamp(p.verification.samplingPct, 0, 100);
   p.conditions.minBatteryPct = clamp(p.conditions.minBatteryPct, 0, 100);
+  p.conditions.lowBatteryFlushPct = clamp(p.conditions.lowBatteryFlushPct, 1, 50);
   return p;
 }
 
