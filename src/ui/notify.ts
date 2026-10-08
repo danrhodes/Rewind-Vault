@@ -20,11 +20,15 @@ const VISIBLE: Record<NotificationLevel, readonly NoticeKind[]> = {
   verbose: ["error", "warning", "info", "success"],
 };
 
+/** Receives every error message, whatever the notification level (see FailureAlert). */
+export type ErrorSink = (message: string) => void;
+
 /** Notices honouring the `notifications.level` setting, which is read on every call. */
 export class Notifier {
   constructor(
     private readonly show: ShowNotice,
     private readonly getProfile: () => SettingsProfile,
+    private readonly onError?: ErrorSink,
   ) {}
 
   /** True when a notice of this kind would be shown right now. */
@@ -33,6 +37,13 @@ export class Notifier {
   }
 
   notify(kind: NoticeKind, message: string): void {
+    if (kind === "error") {
+      try {
+        this.onError?.(message);
+      } catch {
+        // An alert that fails must never break the operation that reported the error.
+      }
+    }
     if (!this.wouldShow(kind)) return;
     try {
       this.show(`Rewind Vault: ${message}`, kind === "error" ? ERROR_TIMEOUT_MS : undefined);

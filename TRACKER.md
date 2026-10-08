@@ -7,8 +7,8 @@ Priority: P1 now · P2 schedule · P3 delegate/later · P4 defer.
 ## Status
 - Current phase: 8
 - Last session: 2026-10-08
-- Next task: T-122 (T-005 awaiting MT-1)
-- Tasks done: 85 / 118
+- Next task: T-123 (T-005 awaiting MT-1)
+- Tasks done: 86 / 118
 
 ---
 
@@ -117,7 +117,7 @@ Priority: P1 now · P2 schedule · P3 delegate/later · P4 defer.
 ## Phase 9 — Safety extras
 - [x] T-120 [P1] `MassChangeGuard` pause on >N changes in M s | T-042 | threshold tests; protects last good backup
 - [x] T-121 [P2] Pre-risk snapshots (plugin update, bulk delete/rename) | T-120 | —
-- [~] T-122 [P2] Failure alert: daily-note append (optional) | T-100 | —
+- [x] T-122 [P2] Failure alert: daily-note append (optional) | T-100 | —
 - [ ] T-123 [P2] Sync-conflict file detector | T-040 | flags `conflicted copy` patterns
 - [ ] T-124 [P2] Desktop external copy (`ExternalCopy.ts`) | T-047 | platform-guarded; mobile build has no `fs`
 
@@ -181,6 +181,7 @@ MT-13 | Obsidian desktop + mobile | Copy settings as a passphrase-protected link
 MT-14 | Obsidian desktop + mobile | Run Reset backup state: confirm dialog, then Back up now makes a full backup even with no edits, and old backups are all still listed | T-111 | pending
 MT-15 | Obsidian desktop + mobile | Set mass-change threshold to 5 in 60 s, then bulk-edit or rename 10 notes: an error notice appears, the status bar shows failure, automatic backups stop (log says held back) while Back up now still works; "Resume automatic backups" asks for confirmation and re-enables them. Restoring into the restore folder or running a backup must NOT trip it | T-120 | pending
 MT-16 | Obsidian desktop | Pre-risk snapshots: delete or rename 12 notes within 30 s and confirm one new differential backup appears (log says Bulk delete or rename detected); update or install another community plugin and within 10 min (or on next start) a backup appears and backup/plugins.json lists its version; with the setting off, neither happens | T-121 | pending
+MT-17 | Obsidian desktop + mobile | Daily-note failure alert: turn it on with path Journal/Backup alerts.md, make a backup fail (e.g. set backup folder to an unwritable/locked case or cancel nothing: simulate by running a backup while another device holds the lock), confirm a "- [ ] date time Rewind Vault: ..." line appears at the end of the note even with notifications Silent, that an open note is not overwritten, and that an invalid path only logs a warning | T-122 | pending
 
 ## Ideas Parking Lot
 _Out-of-plan ideas. Do not build until promoted to a task._
@@ -276,3 +277,4 @@ _Format: `YYYY-MM-DD | tasks touched | tests added | decisions | blockers | next
 - 2026-10-08 | T-120 done | tests/core/MassChangeGuard.test.ts (7: trips only above the threshold, one file counts once per window, old changes forgotten, steady stream trips, single alert and stays tripped until released, disabled clears it, limits read live), 1 in tests/triggers/AutoBackup.test.ts (held back, busy flag untouched), 3 in tests/commands/maintenanceActions.test.ts (resume after confirm / declined / not paused) | core/MassChangeGuard counts DIFFERENT changed files inside the window (create/modify/delete/rename events, from automation.ts); backup and restore folders and anything during a running backup/restore are ignored. Tripped = automatic backups held (AutoBackup.hold), error notice + status bar error; manual Back up now still works. Release via command "Resume automatic backups (after a mass-change pause)". The pause lives in memory only, so a restart clears it (kept simple; persisting it is an idea, parked). Settings already in the tab from T-103. | — | T-121
 - 2026-10-08 | T-121 done | tests/core/PluginWatch.test.ts (8), tests/core/BulkChangeDetector.test.ts (4), tests/triggers/PreRiskTrigger.test.ts (11), 1 in AutoBackup.test.ts (pre-risk is always a differential run), TriggerManager test updated for the extra listeners | A snapshot is taken (reason "pre-risk", bypasses the run-guard cooldown, still subject to conditions and the mass-change guard) when (a) 10+ different files are deleted or renamed within 30 s (constants PRE_RISK; backup/restore folders ignored so pruning cannot trigger it) or (b) another plugin was installed or updated: core/PluginWatch compares `<configDir>/plugins/*/manifest.json` versions with `<backupFolder>/plugins.json`, checked when the app is ready and every 10 min, because Obsidian emits no vault events for the config folder. Plugin changes are detected after the fact, so the snapshot captures the vault right after the update, not before it; the first check only records. Setting safety.preRiskSnapshots already existed in the tab. | — | T-122
 - 2026-10-08 | T-110 follow-up (missed in the first pass) | 2 tests added in settingsActions.test.ts (plain copy becomes protected when the toggle is on; cancelled prompt copies nothing) | The schema had deferred `misc.settingsPassphraseEnabled` to T-110, so it is now a settings-tab toggle ("Protect copied settings with a passphrase") that makes "Copy settings as a link" ask for a passphrase and encrypt; DEFERRED list is now empty. This also fits the Decisions row from earlier today. | — | T-122
+- 2026-10-08 | T-122 done | tests/core/FailureAlert.test.ts (7: task line with local time, multi-line message, setting off, unsafe paths refused with a log line, duplicate window, write failure swallowed, stamp padding), tests/storage/TextAppender.test.ts (3: creates note + folders, appends without touching content, StorageError), 3 in tests/ui/notify.test.ts (error sink fires at every level and only for errors, failure() included, throwing sink harmless), 1 in tests/services.test.ts (alert written only when the setting is on) | Notifier gained an optional error sink; services wires it to core/FailureAlert, so every error notice (backup, verify, deep verify, mass-change, automatic run) is also written as `- [ ] YYYY-MM-DD HH:mm Rewind Vault: message` to the chosen note, even at notification level Silent. Same message at most once per 10 min. Uses the adapter's own append (storage/TextAppender) so it cannot overwrite an edit the user is making to that note. Settings (dailyNoteFailureAppend, dailyNotePath) were already in the tab. Path must be a safe vault-relative .md path. | — | T-123

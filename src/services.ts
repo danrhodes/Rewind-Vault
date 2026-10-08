@@ -12,6 +12,8 @@ import { systemClock, type IClock } from "./helpers/time";
 import { resolveProfileFor } from "./settings/profiles";
 import { createStorageEstimateProbe, type IFreeSpaceProbe } from "./storage/FreeSpace";
 import type { IVaultStore } from "./storage/VaultStore";
+import { FailureAlert } from "./core/FailureAlert";
+import type { ITextAppender } from "./storage/TextAppender";
 import { Notifier, type ShowNotice } from "./ui/notify";
 import type { Settings, SettingsProfile, VerifyReport } from "./types";
 
@@ -55,6 +57,8 @@ export interface ServiceDeps {
   pluginVersion?: string;
   /** Shows a transient message; main passes `new Notice`. Defaults to doing nothing. */
   showNotice?: ShowNotice;
+  /** Writes failure alerts into a note. Defaults to none (alerts are skipped). */
+  appendText?: ITextAppender;
   /** Free-space probe for the pre-run check. Defaults to the browser storage estimate. */
   freeSpace?: IFreeSpaceProbe;
   /** Supply to replace the default file logger (tests). */
@@ -91,6 +95,10 @@ export function createServices(deps: ServiceDeps): Services {
     platform: platform.kind,
     deriveMasterKey,
   };
+
+  const failureAlert = deps.appendText
+    ? new FailureAlert(deps.appendText, clock, logger, () => getProfile().notifications)
+    : null;
 
   const backup = new BackupEngine({
     store,
@@ -136,7 +144,9 @@ export function createServices(deps: ServiceDeps): Services {
         platform: platform.kind,
       });
     },
-    notifier: new Notifier(deps.showNotice ?? (() => undefined), getProfile),
+    notifier: new Notifier(deps.showNotice ?? (() => undefined), getProfile, (message) => {
+      void failureAlert?.report(message);
+    }),
     verifyBackup: (backupId, options) => verifyAndRecord(verifyDeps, backupId, options),
     verifyDeps,
     getProfile,

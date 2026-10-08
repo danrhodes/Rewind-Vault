@@ -10,6 +10,7 @@ import { createAutomation, type Automation } from "./automation";
 import { createServices, type Services } from "./services";
 import { migrateSettings } from "./settings/migrate";
 import { RewindVaultSettingTab } from "./settings/SettingsTab";
+import { createTextAppender } from "./storage/TextAppender";
 import { AdapterVaultStore } from "./storage/VaultStore";
 import { loadIndex } from "./core/BackupIndex";
 import { BackupBrowserModal } from "./ui/BackupBrowserModal";
@@ -27,9 +28,11 @@ export default class RewindVaultPlugin extends Plugin {
 
   override async onload(): Promise<void> {
     const settings = migrateSettings(await this.loadData());
+    const store = new AdapterVaultStore(this.app.vault.adapter);
     const services = createServices({
       settings,
-      store: new AdapterVaultStore(this.app.vault.adapter),
+      store,
+      appendText: createTextAppender(this.app.vault.adapter, store),
       platform: createPlatform({ isMobile: Platform.isMobile, isDesktop: Platform.isDesktop }),
       saveSettings: () => this.saveData(settings),
       pluginVersion: this.manifest.version,

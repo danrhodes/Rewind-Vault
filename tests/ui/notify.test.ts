@@ -161,3 +161,44 @@ describe("Notifier.backupResult", () => {
     expect(shown).toEqual([]);
   });
 });
+
+describe("error sink", () => {
+  function withSink(level: NotificationLevel, sinkThrows = false) {
+    const profile = createDefaultProfile("desktop");
+    profile.notifications.level = level;
+    const errors: string[] = [];
+    const shown: string[] = [];
+    const notifier = new Notifier(
+      (m) => shown.push(m),
+      () => profile,
+      (message) => {
+        errors.push(message);
+        if (sinkThrows) throw new Error("sink broke");
+      },
+    );
+    return { notifier, errors, shown };
+  }
+
+  it("receives errors even when notices are silent, and nothing else", () => {
+    const t = withSink("silent");
+    t.notifier.error("it broke");
+    t.notifier.warning("careful");
+    t.notifier.info("fyi");
+    t.notifier.success("done");
+    expect(t.errors).toEqual(["it broke"]);
+    expect(t.shown).toEqual([]);
+  });
+
+  it("receives failures reported through failure()", () => {
+    const t = withSink("errors");
+    t.notifier.failure("Backup", new Error("disk full"));
+    expect(t.errors).toEqual(["Backup failed: disk full"]);
+    expect(t.shown).toHaveLength(1);
+  });
+
+  it("a throwing sink does not stop the notice", () => {
+    const t = withSink("errors", true);
+    expect(() => t.notifier.error("x")).not.toThrow();
+    expect(t.shown).toHaveLength(1);
+  });
+});

@@ -105,4 +105,33 @@ describe("createServices", () => {
     });
     await expect(s.passphrase.getPassphrase()).rejects.toThrow("cancelled");
   });
+
+  it("writes errors into the daily note when the setting is on, and only then", async () => {
+    const settings = createDefaultSettings();
+    settings.desktop.notifications.dailyNoteFailureAppend = true;
+    settings.desktop.notifications.dailyNotePath = "alerts.md";
+    const written: string[] = [];
+    const s = createServices({
+      settings,
+      store: new MockVaultStore(),
+      platform: new MockPlatform("desktop"),
+      logger: new MockLogger(),
+      saveSettings: async () => undefined,
+      appendText: {
+        appendText: async (path, text) => {
+          written.push(`${path}:${text}`);
+        },
+      },
+    });
+    s.notifier.info("fine");
+    s.notifier.error("Backup failed");
+    await Promise.resolve();
+    expect(written).toHaveLength(1);
+    expect(written[0]).toContain("alerts.md:");
+    expect(written[0]).toContain("Rewind Vault: Backup failed");
+    settings.desktop.notifications.dailyNoteFailureAppend = false;
+    s.notifier.error("Another failure");
+    await Promise.resolve();
+    expect(written).toHaveLength(1);
+  });
 });
