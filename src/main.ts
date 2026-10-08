@@ -11,6 +11,7 @@ import { AdapterVaultStore } from "./storage/VaultStore";
 import { loadIndex } from "./core/BackupIndex";
 import { BackupBrowserModal } from "./ui/BackupBrowserModal";
 import { RestorePreviewModal } from "./ui/RestorePreviewModal";
+import { VerifyReportModal } from "./ui/VerifyReportModal";
 import { ConfirmModal } from "./ui/ConfirmModal";
 import { createProgressUi } from "./ui/progressHost";
 
@@ -60,6 +61,12 @@ export default class RewindVaultPlugin extends Plugin {
         notifier: services.notifier,
         getProfile: services.getProfile,
         progress,
+        results: {
+          showVerifyReport: (report) =>
+            new VerifyReportModal(this.app, report, (text) =>
+              navigator.clipboard.writeText(text),
+            ).open(),
+        },
       },
       busy,
     );
