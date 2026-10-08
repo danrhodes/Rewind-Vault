@@ -34,6 +34,8 @@ export interface ConditionDeps {
   yieldIfNeeded?: () => Promise<void>;
   /** Skip the minimum-battery check (the low-battery flush runs precisely because it is low). */
   ignoreBattery?: boolean;
+  /** Skip the no-changes check (continuing an interrupted backup is needed even if nothing changed since). */
+  ignoreNoChanges?: boolean;
 }
 
 /**
@@ -76,7 +78,12 @@ export async function evaluateConditions(deps: ConditionDeps): Promise<Condition
     }
   }
 
-  if (blocked.length === 0 && conditions.skipIfNoChanges && !(await hasChanges(deps))) {
+  if (
+    blocked.length === 0 &&
+    conditions.skipIfNoChanges &&
+    !deps.ignoreNoChanges &&
+    !(await hasChanges(deps))
+  ) {
     blocked.push({ condition: "no-changes", message: "Nothing changed since the last backup" });
   }
 

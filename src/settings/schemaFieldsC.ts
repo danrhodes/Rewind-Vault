@@ -23,6 +23,13 @@ export const FIELDS_C: readonly FieldDef[] = [
   },
   {
     group: "triggers",
+    key: "continueInterrupted",
+    kind: "toggle",
+    name: "Continue an interrupted backup",
+    desc: "When Obsidian starts or returns to the foreground and a backup was cut off (a phone suspended it), carry on from the last finished part instead of starting again.",
+  },
+  {
+    group: "triggers",
     key: "intervalEnabled",
     kind: "toggle",
     name: "Back up on a timer",

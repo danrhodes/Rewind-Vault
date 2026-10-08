@@ -109,7 +109,7 @@ export function createAutomation(plugin: Plugin, services: Services, busy: BusyF
   const network = createNetworkProbe();
   const run = createAutoBackup({
     backup: services.backup,
-    conditions: (reason) =>
+    conditions: (reason, continuing) =>
       evaluateConditions({
         store,
         logger,
@@ -118,6 +118,7 @@ export function createAutomation(plugin: Plugin, services: Services, busy: BusyF
         freeSpace,
         network,
         ignoreBattery: reason === "low-battery",
+        ignoreNoChanges: continuing,
       }),
     notifier,
     logger,

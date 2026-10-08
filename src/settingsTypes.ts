@@ -35,6 +35,8 @@ export interface TriggerSettings {
   onStartup: boolean;
   onResume: boolean;
   resumeMinGapMin: number;
+  /** On startup or return to the foreground, continue an interrupted backup instead of starting over. */
+  continueInterrupted: boolean;
   intervalEnabled: boolean;
   intervalMinutes: number;
   dailyTimes: string[];

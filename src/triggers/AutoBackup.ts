@@ -6,12 +6,15 @@ import type { BackupStatusSink } from "../ui/StatusBar";
 import type { Notifier } from "../ui/notify";
 import type { SettingsProfile } from "../types";
 import type { ConditionResult } from "./Conditions";
+import type { RunProgress, RunResult } from "../core/RunTypes";
+import type { ResumeInfo } from "../core/BackupEngine";
 import type { RunRequest, TriggerReason } from "./TriggerTypes";
 
 export interface AutoBackupDeps {
-  backup: Pick<BackupEngine, "run">;
+  backup: Pick<BackupEngine, "run"> & Partial<Pick<BackupEngine, "resume" | "findResumable">>;
   /** Battery, Wi-Fi, free space and no-change checks (see Conditions.ts). */
-  conditions: (reason: TriggerReason) => Promise<ConditionResult>;
+  /** `continuing` is true when finishing an interrupted backup rather than starting a new one. */
+  conditions: (reason: TriggerReason, continuing: boolean) => Promise<ConditionResult>;
   notifier: Notifier;
   logger: ILogger;
   getProfile: () => SettingsProfile;
@@ -52,9 +55,17 @@ export function createAutoBackup(deps: AutoBackupDeps): RunRequest {
     }
     let ok = true;
     try {
-      if (!(await deps.conditions(reason)).ok) return;
-      logger.info(`Automatic backup started (${reason})`);
-      const result = await deps.backup.run({ ...options, onProgress: (p) => status?.progress(p) });
+      const interrupted = await findInterrupted(deps, reason);
+      if (!(await deps.conditions(reason, interrupted !== null)).ok) return;
+      const onProgress = (p: RunProgress): void => status?.progress(p);
+      let result: RunResult;
+      if (interrupted && deps.backup.resume) {
+        logger.info(`Automatic backup continuing ${interrupted.backupId} (${reason})`);
+        result = await deps.backup.resume({ mode: interrupted.type, onProgress });
+      } else {
+        logger.info(`Automatic backup started (${reason})`);
+        result = await deps.backup.run({ ...options, onProgress });
+      }
       notifier.backupResult(result);
     } catch (error) {
       if (error instanceof LockError) throw error;
@@ -68,4 +79,17 @@ export function createAutoBackup(deps: AutoBackupDeps): RunRequest {
       status?.finished(ok);
     }
   };
+}
+
+/**
+ * An interrupted backup to carry on with, when this trigger is a startup or a return to the
+ * foreground and the setting allows it. A lookup failure means "none": a fresh backup follows.
+ */
+async function findInterrupted(
+  deps: AutoBackupDeps,
+  reason: TriggerReason,
+): Promise<ResumeInfo | null> {
+  if (reason !== "startup" && reason !== "resume") return null;
+  if (!deps.getProfile().triggers.continueInterrupted || !deps.backup.findResumable) return null;
+  return deps.backup.findResumable().catch(() => null);
 }

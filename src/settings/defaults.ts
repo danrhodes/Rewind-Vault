@@ -35,6 +35,7 @@ function baseProfile(): SettingsProfile {
       onStartup: true,
       onResume: true,
       resumeMinGapMin: 30,
+      continueInterrupted: true,
       intervalEnabled: false,
       intervalMinutes: 60,
       dailyTimes: [],

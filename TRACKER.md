@@ -7,8 +7,8 @@ Priority: P1 now · P2 schedule · P3 delegate/later · P4 defer.
 ## Status
 - Current phase: 10
 - Last session: 2026-10-08
-- Next task: T-152 (T-005 awaiting MT-1)
-- Tasks done: 101 / 118
+- Next task: T-153 (T-005 awaiting MT-1)
+- Tasks done: 102 / 118
 
 ---
 
@@ -138,7 +138,7 @@ Priority: P1 now · P2 schedule · P3 delegate/later · P4 defer.
 ## Phase 11 — Mobile hardening
 - [x] T-150 [P1] Chunk size + yield tuning; low-memory mode | T-016,T-044 | memory budget doc
 - [x] T-151 [P2] Wake-lock during backup (where supported) | T-047 | feature-detected
-- [ ] T-152 [P2] Resume-from-checkpoint on app resume | T-051,T-083 | —
+- [x] T-152 [P2] Resume-from-checkpoint on app resume | T-051,T-083 | —
 - [ ] T-153 [P1] Mobile profile defaults (compression off in low-mem, no status bar, no external copy) | T-022 | —
 
 ## Phase 12 — Release
@@ -200,6 +200,7 @@ MT-29 | Obsidian desktop + phone | Recovery data: set "Recovery data" to 10 %, r
 MT-30 | Obsidian desktop + mobile | Run "Vault time travel (read-only)": newest backup is selected, file list appears, switching the backup changes the list (a file deleted later is still there in an older one), search filters, View shows note text, a png says no preview, a huge note is cut with "(shortened)"; nothing in the vault changes and there is no write button; a large vault stays responsive | T-141 | pending
 MT-31 | Android + iPhone (older phone) | Turn on Low-memory mode and back up and restore a vault of several GB with many large attachments: no out-of-memory crash or app reload, the app stays touchable during the run, more but smaller part-*.zip files appear; note peak memory from the platform tools and compare with docs/memory-budget.md (about 32 MB expected) | T-150 | pending
 MT-32 | Android + iPhone | With "Keep the screen on during a backup" on (default on phones), start a large backup and leave the phone untouched: the screen stays on until the backup ends, then dims normally; with the setting off the screen may dim; on a device without Wake Lock support the backup still runs and no error shows; switching away mid-backup does not crash | T-151 | pending
+MT-33 | Android + iPhone | Start a large backup, switch to another app for a minute until the OS suspends Obsidian (or force-quit it), then reopen: the log says "continuing" the same backup id, the progress resumes from the last finished part and ends with one complete backup; with "Continue an interrupted backup" off, a fresh backup is made instead; works even with nothing changed since | T-152 | pending
 
 ## Ideas Parking Lot
 _Out-of-plan ideas. Do not build until promoted to a task._
@@ -312,3 +313,4 @@ _Format: `YYYY-MM-DD | tasks touched | tests added | decisions | blockers | next
 - 2026-10-08 | T-141 done | tests/core/RestoreEngine.timeTravel.test.ts (4: points newest first, files per backup through the chain with deleted files gone, content read at a point, empty and unknown backup), tests/ui/timeTravelModel.test.ts (8: filter, listing text, row text, preview of text / binary / invalid / cut inside a multi-byte character) | New core/TimeTravel.ts (listPoints, listFilesAt) exposed on RestoreEngine; command Vault time travel (read-only) with a modal that has no write action. No new settings. | none | T-150
 - 2026-10-08 | T-150 done | tests/helpers/memoryBudget.test.ts (7: off changes nothing, caps part size / file count / chunk and leaves the input alone, never raises a smaller user value, shorter yield budget, peak estimates for desktop / mobile / low-memory, resolveProfile applies it) | Low-memory mode (setting existed, was unused) now lowers part size to 16 MB, files per part to 500, chunk to 64 KB and the yield budget to 10 ms, applied in resolveProfile so every engine sees it. Memory budget doc in docs/memory-budget.md (estimates only, device figures in MT-31). | none | T-151
 - 2026-10-08 | T-151 done | tests/helpers/wakeLock.test.ts (4: no API, refusal gives null, release once, failing release swallowed), tests/core/BackupMirror.wakeLock.test.ts (4: held for the whole backup and released, not asked when off, released on cancel, backup still runs without a lock) | New setting misc.keepAwake (default off on desktop, on in the mobile profile), in the settings tab. helpers/wakeLock.ts is feature-detected and never throws; BackupMirror wraps run and resume, so engine file stays under 300 lines. The system drops the lock if the app is hidden; no re-acquire (the backup is then suspended anyway). | none | T-152
+- 2026-10-08 | T-152 done | tests/triggers/AutoBackup.resume.test.ts (5: continues on startup and on resume instead of starting over and skips the no-changes condition, normal backup when nothing was cut off, not looked for on other triggers or with the setting off, falls back to a fresh backup if the lookup fails) | New setting triggers.continueInterrupted (default on), in the settings tab. AutoBackup uses BackupEngine.findResumable/resume on the startup and resume triggers only; conditions get a continuing flag that skips the no-changes check. Needs the Back up on return trigger or backup on startup to be on; the style Off still disables it. | none | T-153
