@@ -213,6 +213,13 @@ export const FIELDS_D: readonly FieldDef[] = [
   },
   {
     group: "misc",
+    key: "keepAwake",
+    kind: "toggle",
+    name: "Keep the screen on during a backup",
+    desc: "Stops a phone from suspending Obsidian half way through. Used only while a backup is running, and only where the device supports it.",
+  },
+  {
+    group: "misc",
     key: "chunkSizeKb",
     kind: "number",
     name: "Chunk size",

@@ -112,6 +112,7 @@ function baseProfile(): SettingsProfile {
     misc: {
       settingsPassphraseEnabled: false,
       lowMemoryMode: false,
+      keepAwake: false,
       chunkSizeKb: 1024,
     },
   };
@@ -132,6 +133,7 @@ function mobileProfile(): SettingsProfile {
   p.conditions.lowBatteryFlush = true;
   p.notifications.statusBar = false;
   p.misc.chunkSizeKb = 256;
+  p.misc.keepAwake = true;
   return p;
 }
 

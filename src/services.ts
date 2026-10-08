@@ -12,6 +12,7 @@ import type { ILogger } from "./helpers/logger";
 import { Logger, RotatingFileSink } from "./helpers/logger";
 import type { IPlatform } from "./helpers/platform";
 import { systemClock, type IClock } from "./helpers/time";
+import { acquireWakeLock, type ReleaseWakeLock } from "./helpers/wakeLock";
 import { resolveProfileFor } from "./settings/profiles";
 import { createStorageEstimateProbe, type IFreeSpaceProbe } from "./storage/FreeSpace";
 import type { IVaultStore } from "./storage/VaultStore";
@@ -66,6 +67,8 @@ export interface ServiceDeps {
   externalFs?: ExternalFs | null;
   /** Writes failure alerts into a note. Defaults to none (alerts are skipped). */
   appendText?: ITextAppender;
+  /** Screen wake lock for backups. Defaults to the browser API; tests pass a fake. */
+  wakeLock?: () => Promise<ReleaseWakeLock | null>;
   /** Free-space probe for the pre-run check. Defaults to the browser storage estimate. */
   freeSpace?: IFreeSpaceProbe;
   /** Supply to replace the default file logger (tests). */
@@ -125,6 +128,7 @@ export function createServices(deps: ServiceDeps): Services {
 
   const backup = new BackupMirror({
     afterRun: refreshStatusNote,
+    wakeLock: deps.wakeLock ?? (() => acquireWakeLock()),
     engine,
     copier: platform.isDesktop && nodeFs ? new ExternalCopy(store, nodeFs, logger) : null,
     platform,

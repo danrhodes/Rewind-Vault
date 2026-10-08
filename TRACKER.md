@@ -7,8 +7,8 @@ Priority: P1 now · P2 schedule · P3 delegate/later · P4 defer.
 ## Status
 - Current phase: 10
 - Last session: 2026-10-08
-- Next task: T-151 (T-005 awaiting MT-1)
-- Tasks done: 100 / 118
+- Next task: T-152 (T-005 awaiting MT-1)
+- Tasks done: 101 / 118
 
 ---
 
@@ -137,7 +137,7 @@ Priority: P1 now · P2 schedule · P3 delegate/later · P4 defer.
 
 ## Phase 11 — Mobile hardening
 - [x] T-150 [P1] Chunk size + yield tuning; low-memory mode | T-016,T-044 | memory budget doc
-- [ ] T-151 [P2] Wake-lock during backup (where supported) | T-047 | feature-detected
+- [x] T-151 [P2] Wake-lock during backup (where supported) | T-047 | feature-detected
 - [ ] T-152 [P2] Resume-from-checkpoint on app resume | T-051,T-083 | —
 - [ ] T-153 [P1] Mobile profile defaults (compression off in low-mem, no status bar, no external copy) | T-022 | —
 
@@ -199,6 +199,7 @@ MT-28 | Obsidian desktop + iPhone/Android | QR settings: change a few settings o
 MT-29 | Obsidian desktop + phone | Recovery data: set "Recovery data" to 10 %, run a full backup of a few-hundred-MB vault: part-*.zip.rr files appear, backup time and UI responsiveness on the phone are acceptable; flip some bytes in a part with a hex editor, Verify (it fails and the backup shows corrupt), press Repair in Browse backups: notice says the part was rebuilt, the backup is no longer corrupt and Verify passes; restore from it works | T-140 | pending
 MT-30 | Obsidian desktop + mobile | Run "Vault time travel (read-only)": newest backup is selected, file list appears, switching the backup changes the list (a file deleted later is still there in an older one), search filters, View shows note text, a png says no preview, a huge note is cut with "(shortened)"; nothing in the vault changes and there is no write button; a large vault stays responsive | T-141 | pending
 MT-31 | Android + iPhone (older phone) | Turn on Low-memory mode and back up and restore a vault of several GB with many large attachments: no out-of-memory crash or app reload, the app stays touchable during the run, more but smaller part-*.zip files appear; note peak memory from the platform tools and compare with docs/memory-budget.md (about 32 MB expected) | T-150 | pending
+MT-32 | Android + iPhone | With "Keep the screen on during a backup" on (default on phones), start a large backup and leave the phone untouched: the screen stays on until the backup ends, then dims normally; with the setting off the screen may dim; on a device without Wake Lock support the backup still runs and no error shows; switching away mid-backup does not crash | T-151 | pending
 
 ## Ideas Parking Lot
 _Out-of-plan ideas. Do not build until promoted to a task._
@@ -310,3 +311,4 @@ _Format: `YYYY-MM-DD | tasks touched | tests added | decisions | blockers | next
 - 2026-10-08 | T-140 done | tests/core/RecoveryRecord.test.ts (16: GF(256) multiply / inverse / matrix inverse, block planning and the 256-block cap, undamaged file left alone, one flipped byte, as many damaged blocks as parity blocks in every position pair, too much damage reported, truncated / extended / missing file, damaged parity block skipped, damaged or truncated record refused, 100-block file with 5 damaged blocks at 10 percent, yielding), tests/core/Repair.test.ts (10: records written only when on and not listed in the manifest, deleted with the backup, damaged part rebuilt byte for byte and the corrupt backup marked intact and re-verified at L3, cut-short part, intact backup untouched, too much damage leaves the file alone with a clear reason, no record, damaged record, unknown backup, encrypted backup), 4 in maintenanceActions.test.ts | Design note adopted (Decisions): sidecar `.rr` files, Cauchy erasure code over GF(256), CRC per block, repair accepted only if the SHA-256 equals the manifest's. New setting zip.recoveryPercent (0 = off, default; 1-50) in the settings tab. BackupExecutor writes the record after each part; core/Repair.repairBackup (under the backup lock via BackupAdmin) rebuilds parts and, if the backup was marked corrupt and every part is now exact, marks it intact again. UI: a Repair button on corrupt backups in Browse backups, notices say what was rebuilt. The external copy mirrors the .rr files because it copies the whole folder. Cost: about parity percent extra space; encoding is about 0.1 s per 50 MB per 5 percent on this machine (not measured on a phone, see MT-29). Not done: free-space estimate does not yet include the parity overhead. | — | T-141
 - 2026-10-08 | T-141 done | tests/core/RestoreEngine.timeTravel.test.ts (4: points newest first, files per backup through the chain with deleted files gone, content read at a point, empty and unknown backup), tests/ui/timeTravelModel.test.ts (8: filter, listing text, row text, preview of text / binary / invalid / cut inside a multi-byte character) | New core/TimeTravel.ts (listPoints, listFilesAt) exposed on RestoreEngine; command Vault time travel (read-only) with a modal that has no write action. No new settings. | none | T-150
 - 2026-10-08 | T-150 done | tests/helpers/memoryBudget.test.ts (7: off changes nothing, caps part size / file count / chunk and leaves the input alone, never raises a smaller user value, shorter yield budget, peak estimates for desktop / mobile / low-memory, resolveProfile applies it) | Low-memory mode (setting existed, was unused) now lowers part size to 16 MB, files per part to 500, chunk to 64 KB and the yield budget to 10 ms, applied in resolveProfile so every engine sees it. Memory budget doc in docs/memory-budget.md (estimates only, device figures in MT-31). | none | T-151
+- 2026-10-08 | T-151 done | tests/helpers/wakeLock.test.ts (4: no API, refusal gives null, release once, failing release swallowed), tests/core/BackupMirror.wakeLock.test.ts (4: held for the whole backup and released, not asked when off, released on cancel, backup still runs without a lock) | New setting misc.keepAwake (default off on desktop, on in the mobile profile), in the settings tab. helpers/wakeLock.ts is feature-detected and never throws; BackupMirror wraps run and resume, so engine file stays under 300 lines. The system drops the lock if the app is hidden; no re-acquire (the backup is then suspended anyway). | none | T-152

@@ -126,6 +126,8 @@ export interface NotificationSettings {
 export interface MiscSettings {
   settingsPassphraseEnabled: boolean;
   lowMemoryMode: boolean;
+  /** Ask the system to keep the screen on while a backup runs (phones suspend the app otherwise). */
+  keepAwake: boolean;
   chunkSizeKb: number;
 }
 

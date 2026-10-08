@@ -1,6 +1,7 @@
 import type { ILogger } from "../helpers/logger";
 import { isValidExternalPath, type ExternalCopy } from "../storage/ExternalCopy";
 import type { IPlatform } from "../helpers/platform";
+import type { ReleaseWakeLock } from "../helpers/wakeLock";
 import type { SettingsProfile } from "../types";
 import type { BackupEngine, ResumeInfo } from "./BackupEngine";
 import { loadIndex } from "./BackupIndex";
@@ -16,6 +17,8 @@ export interface MirrorDeps {
   store: Parameters<typeof loadIndex>[0];
   /** Called after a backup completed or was skipped (the status note). Errors are ignored. */
   afterRun?: () => Promise<unknown>;
+  /** Keeps the screen on while a backup runs (when the keepAwake setting is on). */
+  wakeLock?: () => Promise<ReleaseWakeLock | null>;
 }
 
 /**
@@ -28,12 +31,27 @@ export interface MirrorDeps {
 export class BackupMirror implements Pick<BackupEngine, "run" | "resume" | "findResumable"> {
   constructor(private readonly deps: MirrorDeps) {}
 
-  async run(options: RunOptions): Promise<RunResult> {
-    return this.finish(await this.mirror(await this.deps.engine.run(options)));
+  run(options: RunOptions): Promise<RunResult> {
+    return this.awake(async () =>
+      this.finish(await this.mirror(await this.deps.engine.run(options))),
+    );
   }
 
-  async resume(options: RunOptions): Promise<RunResult> {
-    return this.finish(await this.mirror(await this.deps.engine.resume(options)));
+  resume(options: RunOptions): Promise<RunResult> {
+    return this.awake(async () =>
+      this.finish(await this.mirror(await this.deps.engine.resume(options))),
+    );
+  }
+
+  /** Hold a wake lock around `work` when the setting is on; always released, even on error. */
+  private async awake<T>(work: () => Promise<T>): Promise<T> {
+    const { wakeLock, getProfile } = this.deps;
+    const release = wakeLock && getProfile().misc.keepAwake ? await wakeLock() : null;
+    try {
+      return await work();
+    } finally {
+      await release?.();
+    }
   }
 
   private async finish(result: RunResult): Promise<RunResult> {
