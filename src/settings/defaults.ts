@@ -97,6 +97,8 @@ function baseProfile(): SettingsProfile {
       level: "errors",
       dailyNoteFailureAppend: false,
       dailyNotePath: "",
+      statusNote: false,
+      statusNotePath: "",
       statusBar: true,
       logSizeCapKb: LIMITS.defaultLogCapKb,
     },

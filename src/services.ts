@@ -1,6 +1,7 @@
 import { FILE_NAMES } from "./constants";
 import { BackupAdmin } from "./core/BackupAdmin";
 import { BackupEngine } from "./core/BackupEngine";
+import { updateStatusNote } from "./core/StatusNote";
 import { BackupMirror } from "./core/BackupMirror";
 import { ExternalCopy, loadNodeFs, type ExternalFs } from "./storage/ExternalCopy";
 import { RestoreEngine } from "./core/RestoreEngine";
@@ -42,6 +43,8 @@ export interface Services {
   verifyBackup(backupId: string, options: VerifyOptions): Promise<VerifyReport>;
   /** What verification and deep verify need; used by the scheduler. */
   readonly verifyDeps: VerifyRunnerDeps;
+  /** Rewrite the backup status note now (does nothing while the setting is off). */
+  refreshStatusNote(): Promise<boolean>;
   /** Effective settings for this platform. Re-read after settings change. */
   getProfile(): SettingsProfile;
   saveSettings(): Promise<void>;
@@ -117,7 +120,11 @@ export function createServices(deps: ServiceDeps): Services {
 
   // Desktop only: Node's fs, found at run time. Null on mobile, so no copy is ever attempted.
   const nodeFs = deps.externalFs === undefined ? loadNodeFs() : deps.externalFs;
+  const refreshStatusNote = (): Promise<boolean> =>
+    updateStatusNote({ store, logger, clock, getProfile });
+
   const backup = new BackupMirror({
+    afterRun: refreshStatusNote,
     engine,
     copier: platform.isDesktop && nodeFs ? new ExternalCopy(store, nodeFs, logger) : null,
     platform,
@@ -162,7 +169,12 @@ export function createServices(deps: ServiceDeps): Services {
     notifier: new Notifier(deps.showNotice ?? (() => undefined), getProfile, (message) => {
       void failureAlert?.report(message);
     }),
-    verifyBackup: (backupId, options) => verifyAndRecord(verifyDeps, backupId, options),
+    verifyBackup: async (backupId, options) => {
+      const report = await verifyAndRecord(verifyDeps, backupId, options);
+      await refreshStatusNote();
+      return report;
+    },
+    refreshStatusNote,
     verifyDeps,
     getProfile,
     saveSettings: deps.saveSettings,

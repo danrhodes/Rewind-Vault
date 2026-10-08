@@ -14,6 +14,8 @@ export interface MirrorDeps {
   logger: ILogger;
   getProfile: () => SettingsProfile;
   store: Parameters<typeof loadIndex>[0];
+  /** Called after a backup completed or was skipped (the status note). Errors are ignored. */
+  afterRun?: () => Promise<unknown>;
 }
 
 /**
@@ -27,11 +29,16 @@ export class BackupMirror implements Pick<BackupEngine, "run" | "resume" | "find
   constructor(private readonly deps: MirrorDeps) {}
 
   async run(options: RunOptions): Promise<RunResult> {
-    return this.mirror(await this.deps.engine.run(options));
+    return this.finish(await this.mirror(await this.deps.engine.run(options)));
   }
 
   async resume(options: RunOptions): Promise<RunResult> {
-    return this.mirror(await this.deps.engine.resume(options));
+    return this.finish(await this.mirror(await this.deps.engine.resume(options)));
+  }
+
+  private async finish(result: RunResult): Promise<RunResult> {
+    await this.deps.afterRun?.().catch(() => undefined);
+    return result;
   }
 
   findResumable(): Promise<ResumeInfo | null> {

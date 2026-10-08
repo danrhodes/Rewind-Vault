@@ -113,6 +113,7 @@ export default class RewindVaultPlugin extends Plugin {
       notifier: services.notifier,
       busy,
       massChange: automation.massChange,
+      refreshStatusNote: services.refreshStatusNote,
     });
     const askName = (title: string, message: string) =>
       new TextPromptModal(this.app, title, message, "Name", "OK").ask();

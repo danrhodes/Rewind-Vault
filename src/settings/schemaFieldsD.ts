@@ -145,6 +145,22 @@ export const FIELDS_D: readonly FieldDef[] = [
   },
   {
     group: "notifications",
+    key: "statusNote",
+    kind: "toggle",
+    name: "Keep a backup status note",
+    desc: "A note with the latest backup health in its properties, so Dataview or Bases can show it on a dashboard. Updated after every backup and check.",
+  },
+  {
+    group: "notifications",
+    key: "statusNotePath",
+    kind: "text",
+    name: "Status note path",
+    desc: "Vault-relative path ending in .md. Leave empty to keep it as Backup Status.md inside the backup folder. It is never included in backups.",
+    placeholder: "Backup Status.md",
+    shownIf: { key: "statusNote", value: true },
+  },
+  {
+    group: "notifications",
     key: "statusBar",
     kind: "toggle",
     name: "Show backup status in the status bar",

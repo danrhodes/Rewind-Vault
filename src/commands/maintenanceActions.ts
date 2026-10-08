@@ -14,6 +14,8 @@ export interface MaintenanceDeps {
   notifier: Notifier;
   /** Shared with the backup and restore actions: no maintenance during a run. */
   busy: BusyFlag;
+  /** Rewrite the status note; resolves false when the setting is off or the write failed. */
+  refreshStatusNote(): Promise<boolean>;
   massChange: { isPaused(): boolean; summary(): string; release(): void };
 }
 
@@ -39,6 +41,12 @@ export class MaintenanceActions {
     if (!ok) return;
     massChange.release();
     notifier.success("Automatic backups resumed.");
+  }
+
+  async updateStatusNote(): Promise<void> {
+    const { notifier, refreshStatusNote } = this.deps;
+    if (await refreshStatusNote()) notifier.success("Backup status note updated.");
+    else notifier.info("The status note is off or could not be written. See the settings and log.");
   }
 
   async resetState(): Promise<void> {
@@ -73,6 +81,12 @@ export function buildMaintenanceCommands(actions: MaintenanceActions): CommandDe
       name: "Reset backup state (next backup will be full)",
       icon: "rotate-ccw",
       run: () => actions.resetState(),
+    },
+    {
+      id: "update-status-note",
+      name: "Update the backup status note",
+      icon: "activity",
+      run: () => actions.updateStatusNote(),
     },
     {
       id: "resume-automatic",

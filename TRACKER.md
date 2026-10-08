@@ -7,8 +7,8 @@ Priority: P1 now · P2 schedule · P3 delegate/later · P4 defer.
 ## Status
 - Current phase: 10
 - Last session: 2026-10-08
-- Next task: T-133 (T-005 awaiting MT-1)
-- Tasks done: 91 / 118
+- Next task: T-134 (T-005 awaiting MT-1)
+- Tasks done: 92 / 118
 
 ---
 
@@ -125,7 +125,7 @@ Priority: P1 now · P2 schedule · P3 delegate/later · P4 defer.
 - [x] T-130 [P1] Per-note time machine (commands + modal) | T-068,T-108 | —
 - [x] T-131 [P2] Tombstone recovery command | T-048,T-063 | —
 - [x] T-132 [P2] Pinned milestones UI (name on create) | T-094 | —
-- [ ] T-133 [P2] `Backup Status.md` health note with frontmatter | T-073 | Dataview-readable
+- [x] T-133 [P2] `Backup Status.md` health note with frontmatter | T-073 | Dataview-readable
 - [ ] T-134 [P2] Monthly restore rehearsal (scheduled) | T-079,T-082 | —
 - [ ] T-135 [P2] Restore link report | T-063 | lists broken/fixed wikilinks
 - [ ] T-136 [P3] Edit-volume trigger (words typed) | T-084 | —
@@ -187,6 +187,7 @@ MT-19 | Obsidian desktop (Windows + one of Mac/Linux) | Set destination to Exter
 MT-20 | Obsidian desktop + mobile | Time machine: edit a note across 3 backups, run "Time machine for the current note": versions listed newest first, the one equal to now says "same as now", Show changes shows +/- lines, Restore copy puts the file in restore/<backup id>/, Replace note asks to confirm and the note changes (a safety backup is made first); a deleted-then-recreated note shows its deletion point; with no note open a notice says so | T-130 | pending
 MT-21 | Obsidian desktop + mobile | Delete two notes, run Back up now, run "Recover deleted files": both listed, search filters, ticking one and Recover to my vault brings it back with its last content and it disappears from the list; Recover to the restore folder writes under restore/<backup id>/ | T-131 | pending
 MT-22 | Obsidian desktop + mobile | Milestones: "Create a named milestone" asks for a name, shows the progress dialog, and the backup then appears in Browse backups as [pinned] with that name; Pin in the browser asks for a name (Cancel leaves it unpinned); with keep-last 1 and several later backups the milestone survives retention | T-132 | pending
+MT-23 | Obsidian desktop + mobile | Turn on "Keep a backup status note", run Back up now: backup/Backup Status.md appears with properties visible in Obsidian's Properties view; a Dataview query like TABLE status, last_backup FROM "backup" WHERE rewind_vault_status works; set a custom path (e.g. Dashboards/Backup.md): the note moves there and a following backup does not include or re-trigger on it; corrupt a backup and Verify: status turns to warning/error | T-133 | pending
 
 ## Ideas Parking Lot
 _Out-of-plan ideas. Do not build until promoted to a task._
@@ -288,3 +289,4 @@ _Format: `YYYY-MM-DD | tasks touched | tests added | decisions | blockers | next
 - 2026-10-08 | T-130 done | tests/ui/timeMachineModel.test.ts (6: newest first with sizes and deletion points, version identical to the note marked, input not mutated, timeline text) | Command "Time machine for the current note" opens ui/TimeMachineModal: every saved version of the active note across backups (core listFileVersions from T-068), Show changes (line diff against the note now, reuses diffModel), Restore copy (to the restore folder, overwrite allowed there), Replace note (restore into the vault with confirmation; the existing pre-restore snapshot setting protects the current text). Wiring is in src/timeMachine.ts, not main.ts. | — | T-131
 - 2026-10-08 | T-131 done | tests/core/RestoreEngine.deleted.test.ts (4: lists tombstoned files still missing with the backup holding the last version, drops files recreated by hand, empty cases, restoring from the listed backup brings the last version back), tests/ui/recoverModel.test.ts (6: filter, grouping by backup, summary text) | New RestoreEngine.listDeleted reads the newest intact backup's chain (ChainResolver.deletedPaths) and keeps paths absent from the vault. Command "Recover deleted files" opens ui/RecoverDeletedModal (search, tick, Recover to my vault / to the restore folder); restores go through RestoreActions so they get the progress dialog and busy flag. Limits: only deletions recorded in the newest chain are listed (a file deleted before the latest full backup is no longer in that chain; use the time machine on an older backup), and the deletion time shown is the time of the backup that recorded it. | — | T-132
 - 2026-10-08 | T-132 done | tests/commands/milestoneActions.test.ts (6: name cleaning, full backup pinned with the cleaned name, empty name pins without a label, cancelled prompt makes nothing, no backup means no pin, palette command) | Pinning (retention-exempt since T-094) now asks for a name: the Pin button in the backup browser opens a text prompt (new ui/TextPromptModal; cancel aborts, empty name pins unnamed), and the new command "Create a named milestone (full backup, kept)" asks for a name, makes a FULL backup (self-contained, no chain needed) and pins it. Actions.backupForMilestone returns the new backup id; runBackup now returns its result internally. Names: whitespace collapsed, max 80 chars. | — | T-133
+- 2026-10-08 | T-133 done | tests/core/StatusNote.test.ts (16: health rules none/ok/warning/error, frontmatter keys and quoting, table with labels, row cap, empty history, off by default, written into the backup folder and kept current, verify result read from the newest manifest, custom path and unsafe paths refused, write failure never throws, note excluded from scans only while the setting is on), 2 in BackupMirror.test.ts (afterRun after completed and skipped runs, failure ignored, not after a failed run), 2 in maintenanceActions.test.ts | New settings notifications.statusNote (default off) and statusNotePath (empty = "Backup Status.md" inside the backup folder), both in the settings tab. core/StatusNote renders YAML properties (rewind_vault_status, status ok|warning|error|none, updated, last_backup*, backups_total/ok/damaged/pinned, total_size_bytes, last_verify*, last_deep_verify*) plus a 10-row table. Written after every completed or skipped backup (BackupMirror.afterRun), after every verification and deep verify, and by the command "Update the backup status note". A custom note path is added to the scanner's forced exclusions so the note never lands in a backup or counts as a change; the default sits in the already excluded backup folder. | — | T-134

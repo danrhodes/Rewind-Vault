@@ -143,6 +143,7 @@ export function createAutomation(plugin: Plugin, services: Services, busy: BusyF
       isDue: () => isDeepVerifyDue(services.verifyDeps),
       run: async () => {
         const report = await runDeepVerify(services.verifyDeps);
+        await services.refreshStatusNote();
         if (report?.result === "fail" && getProfile().verification.onFailureNotify) {
           notifier.error(`Scheduled deep verify FAILED for ${report.backupId}. See the log.`);
         }

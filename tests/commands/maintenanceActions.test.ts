@@ -7,7 +7,7 @@ import {
 import { createDefaultProfile } from "../../src/settings/defaults";
 import { Notifier } from "../../src/ui/notify";
 
-function setup(answer = true, fail = false, paused = false) {
+function setup(answer = true, fail = false, paused = false, noteWritten = true) {
   const profile = createDefaultProfile("desktop");
   profile.notifications.level = "verbose";
   const notices: string[] = [];
@@ -32,6 +32,7 @@ function setup(answer = true, fail = false, paused = false) {
     ),
     busy,
     massChange,
+    refreshStatusNote: async () => noteWritten,
   });
   return { actions, resetState, notices, busy, massChange };
 }
@@ -71,6 +72,7 @@ describe("MaintenanceActions.resetState", () => {
   it("has palette commands", () => {
     expect(buildMaintenanceCommands(setup().actions).map((c) => c.id)).toEqual([
       "reset-state",
+      "update-status-note",
       "resume-automatic",
     ]);
   });
@@ -96,5 +98,19 @@ describe("MaintenanceActions.resumeAfterMassChange", () => {
     await t.actions.resumeAfterMassChange();
     expect(t.massChange.release).not.toHaveBeenCalled();
     expect(t.notices.join()).toContain("not paused");
+  });
+});
+
+describe("MaintenanceActions.updateStatusNote", () => {
+  it("confirms when the note was written", async () => {
+    const t = setup();
+    await t.actions.updateStatusNote();
+    expect(t.notices.join()).toContain("status note updated");
+  });
+
+  it("explains when it was not written", async () => {
+    const t = setup(true, false, false, false);
+    await t.actions.updateStatusNote();
+    expect(t.notices.join()).toContain("off or could not be written");
   });
 });

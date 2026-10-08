@@ -14,6 +14,8 @@ export interface ScanOptions {
   excludeTrash: boolean;
   /** Gitignore-style patterns (see helpers/glob). */
   globs: readonly string[];
+  /** Exact files that are always excluded (the generated status note). */
+  excludePaths?: readonly string[];
 }
 
 export function scanOptionsFromProfile(profile: SettingsProfile): ScanOptions {
@@ -26,7 +28,15 @@ export function scanOptionsFromProfile(profile: SettingsProfile): ScanOptions {
     excludeNodeModules: profile.exclusions.excludeNodeModules,
     excludeTrash: profile.exclusions.excludeTrash,
     globs: profile.exclusions.globs,
+    excludePaths: statusNoteExclusions(profile),
   };
+}
+
+function statusNoteExclusions(profile: SettingsProfile): string[] {
+  const { notifications } = profile;
+  if (!notifications.statusNote) return [];
+  const custom = notifications.statusNotePath.trim();
+  return custom === "" ? [] : [custom]; // the default lives in the backup folder, already excluded
 }
 
 export type ExcludeCheck = (path: string) => boolean;
@@ -44,6 +54,7 @@ export function createExcludeCheck(options: ScanOptions): ExcludeCheck {
 
   return (path) => {
     if (options.backupFolder !== "" && isInsideFolder(path, options.backupFolder)) return true;
+    if (options.excludePaths?.includes(path)) return true;
     if (!hiddenAllowed && isHiddenPath(path)) return true;
     if (options.excludeObsidian && isInsideFolder(path, ".obsidian")) return true;
     if (options.excludeTrash && isInsideFolder(path, ".trash")) return true;

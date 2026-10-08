@@ -31,6 +31,7 @@ function setup(
     externalPath?: string;
     kind?: "desktop" | "mobile";
     noFs?: boolean;
+    afterRun?: () => Promise<unknown>;
   } = {},
 ) {
   const r = rig((p) => {
@@ -46,6 +47,7 @@ function setup(
     logger: r.logger,
     getProfile: () => r.profile,
     store: r.store,
+    afterRun: options.afterRun,
   });
   return { r, fs, mirror };
 }
@@ -108,5 +110,36 @@ describe("BackupMirror", () => {
       expect(result.externalCopy?.ok, JSON.stringify(options)).toBe(false);
       expect(fs.files.size).toBe(0);
     }
+  });
+});
+
+describe("BackupMirror afterRun", () => {
+  it("runs after a completed and after a skipped backup, and its failure is ignored", async () => {
+    let calls = 0;
+    const { r, mirror } = setup({
+      destination: "vault",
+      afterRun: async () => {
+        calls++;
+        throw new Error("note write failed");
+      },
+    });
+    await r.store.seed("a.md", "alpha");
+    expect((await mirror.run({ mode: "full" })).status).toBe("completed");
+    r.clock.advance(60_000);
+    expect((await mirror.run({ mode: "diff" })).status).toBe("skipped");
+    expect(calls).toBe(2);
+  });
+
+  it("does not run when the backup fails", async () => {
+    let calls = 0;
+    const { r, mirror } = setup({
+      destination: "vault",
+      afterRun: async () => {
+        calls++;
+      },
+    });
+    await r.store.seed("a.md", "alpha");
+    await expect(mirror.run({ mode: "full", isCancelled: () => true })).rejects.toThrow();
+    expect(calls).toBe(0);
   });
 });

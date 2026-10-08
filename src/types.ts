@@ -258,6 +258,10 @@ export interface NotificationSettings {
   level: NotificationLevel;
   dailyNoteFailureAppend: boolean;
   dailyNotePath: string;
+  /** Keep a "Backup Status" note with a health summary in its frontmatter. */
+  statusNote: boolean;
+  /** Vault path of that note; empty means "Backup Status.md" inside the backup folder. */
+  statusNotePath: string;
   statusBar: boolean;
   logSizeCapKb: number;
 }
