@@ -5,6 +5,7 @@ import { fromBase64 } from "../helpers/bytes";
 import { CancelledError } from "../helpers/errors";
 import type { ILogger } from "../helpers/logger";
 import type { IClock } from "../helpers/time";
+import { yieldBudgetMs } from "../helpers/memoryBudget";
 import { createYielder } from "../helpers/yieldToUI";
 import { assertFreeSpace, estimateBackupBytes, type IFreeSpaceProbe } from "../storage/FreeSpace";
 import type { IVaultStore } from "../storage/VaultStore";
@@ -173,7 +174,7 @@ export class BackupEngine {
         index,
         previousState: state ?? emptyState(0, SCHEMA_VERSION.state),
         keys: await this.keysFor(plan),
-        yieldIfNeeded: this.deps.yieldIfNeeded ?? createYielder(),
+        yieldIfNeeded: this.deps.yieldIfNeeded ?? createYielder(yieldBudgetMs(profile)),
         nonDestructive: options.nonDestructive === true,
         resume: resume ?? undefined,
       };

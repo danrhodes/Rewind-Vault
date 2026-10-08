@@ -1,6 +1,7 @@
 import { RestoreError } from "../helpers/errors";
 import type { ILogger } from "../helpers/logger";
 import type { IClock } from "../helpers/time";
+import { yieldBudgetMs } from "../helpers/memoryBudget";
 import { createYielder } from "../helpers/yieldToUI";
 import type { IVaultStore } from "../storage/VaultStore";
 import type { BackupEntry, SettingsProfile } from "../types";
@@ -125,7 +126,7 @@ export class RestoreEngine {
       logger: this.deps.logger,
       profile,
       backupFolder: profile.destination.backupFolder,
-      yieldIfNeeded: this.deps.yieldIfNeeded ?? createYielder(),
+      yieldIfNeeded: this.deps.yieldIfNeeded ?? createYielder(yieldBudgetMs(profile)),
       deriveMasterKey: this.deps.deriveMasterKey,
       safetySnapshot: this.deps.safetySnapshot,
     };

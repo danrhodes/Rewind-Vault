@@ -1,3 +1,4 @@
+import { applyLowMemory } from "../helpers/memoryBudget";
 import type { IPlatform } from "../helpers/platform";
 import type { PlatformKind, Settings, SettingsProfile } from "../types";
 
@@ -16,7 +17,7 @@ export function resolveProfile(settings: Settings, kind: PlatformKind): Settings
     profile.triggers.onClose = false;
     profile.notifications.statusBar = false;
   }
-  return profile;
+  return applyLowMemory(profile);
 }
 
 export function resolveProfileFor(settings: Settings, platform: IPlatform): SettingsProfile {
