@@ -7,8 +7,8 @@ Priority: P1 now · P2 schedule · P3 delegate/later · P4 defer.
 ## Status
 - Current phase: 10
 - Last session: 2026-10-08
-- Next task: T-153 (T-005 awaiting MT-1)
-- Tasks done: 102 / 118
+- Next task: T-160 (T-005 awaiting MT-1)
+- Tasks done: 103 / 118
 
 ---
 
@@ -139,7 +139,7 @@ Priority: P1 now · P2 schedule · P3 delegate/later · P4 defer.
 - [x] T-150 [P1] Chunk size + yield tuning; low-memory mode | T-016,T-044 | memory budget doc
 - [x] T-151 [P2] Wake-lock during backup (where supported) | T-047 | feature-detected
 - [x] T-152 [P2] Resume-from-checkpoint on app resume | T-051,T-083 | —
-- [ ] T-153 [P1] Mobile profile defaults (compression off in low-mem, no status bar, no external copy) | T-022 | —
+- [x] T-153 [P1] Mobile profile defaults (compression off in low-mem, no status bar, no external copy) | T-022 | —
 
 ## Phase 12 — Release
 - [ ] T-160 [P1] README (install, settings, decrypt recipe, mobile limits, sync warning) | all P1 | —
@@ -314,3 +314,4 @@ _Format: `YYYY-MM-DD | tasks touched | tests added | decisions | blockers | next
 - 2026-10-08 | T-150 done | tests/helpers/memoryBudget.test.ts (7: off changes nothing, caps part size / file count / chunk and leaves the input alone, never raises a smaller user value, shorter yield budget, peak estimates for desktop / mobile / low-memory, resolveProfile applies it) | Low-memory mode (setting existed, was unused) now lowers part size to 16 MB, files per part to 500, chunk to 64 KB and the yield budget to 10 ms, applied in resolveProfile so every engine sees it. Memory budget doc in docs/memory-budget.md (estimates only, device figures in MT-31). | none | T-151
 - 2026-10-08 | T-151 done | tests/helpers/wakeLock.test.ts (4: no API, refusal gives null, release once, failing release swallowed), tests/core/BackupMirror.wakeLock.test.ts (4: held for the whole backup and released, not asked when off, released on cancel, backup still runs without a lock) | New setting misc.keepAwake (default off on desktop, on in the mobile profile), in the settings tab. helpers/wakeLock.ts is feature-detected and never throws; BackupMirror wraps run and resume, so engine file stays under 300 lines. The system drops the lock if the app is hidden; no re-acquire (the backup is then suspended anyway). | none | T-152
 - 2026-10-08 | T-152 done | tests/triggers/AutoBackup.resume.test.ts (5: continues on startup and on resume instead of starting over and skips the no-changes condition, normal backup when nothing was cut off, not looked for on other triggers or with the setting off, falls back to a fresh backup if the lookup fails) | New setting triggers.continueInterrupted (default on), in the settings tab. AutoBackup uses BackupEngine.findResumable/resume on the startup and resume triggers only; conditions get a continuing flag that skips the no-changes check. Needs the Back up on return trigger or backup on startup to be on; the style Off still disables it. | none | T-153
+- 2026-10-08 | T-153 done | tests/settings/profiles.test.ts (+3: mobile defaults have no status bar, vault destination, lighter limits, keep-awake and low-battery flush on; low-memory mode sets compression 0 without touching stored settings; desktop unaffected), memoryBudget test extended for compression | Most of T-153 was already true (status bar and external copy forced off on mobile in resolveProfile, 50 MB parts, 256 KB chunks). Added: low-memory mode now stores without compression. Low-memory mode itself stays off by default, even on mobile (owner may flip it in the mobile defaults). Settings text updated. | none | T-160

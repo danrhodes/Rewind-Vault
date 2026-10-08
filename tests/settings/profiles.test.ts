@@ -49,3 +49,29 @@ describe("resolveProfile", () => {
     expect(resolveProfileFor(s, new MockPlatform("desktop")).conditions.minBatteryPct).toBe(0);
   });
 });
+
+describe("mobile profile defaults (T-153)", () => {
+  it("has no status bar, no external copy and the lighter limits", () => {
+    const s = createDefaultSettings();
+    const p = resolveProfile(s, "mobile");
+    expect(p.notifications.statusBar).toBe(false);
+    expect(p.destination.destination).toBe("vault");
+    expect(p.zip.maxSourceMbPerZip).toBeLessThan(s.desktop.zip.maxSourceMbPerZip);
+    expect(p.misc.keepAwake).toBe(true);
+    expect(p.conditions.lowBatteryFlush).toBe(true);
+  });
+
+  it("turns compression off in low-memory mode and leaves it alone otherwise", () => {
+    const s = createDefaultSettings();
+    expect(resolveProfile(s, "mobile").zip.compressionLevel).toBe(6);
+    s.mobile.misc.lowMemoryMode = true;
+    expect(resolveProfile(s, "mobile").zip.compressionLevel).toBe(0);
+    expect(s.mobile.zip.compressionLevel).toBe(6);
+  });
+
+  it("keeps the desktop profile untouched by mobile limits", () => {
+    const s = createDefaultSettings();
+    s.mobile.misc.lowMemoryMode = true;
+    expect(resolveProfile(s, "desktop").zip.compressionLevel).toBe(6);
+  });
+});

@@ -13,8 +13,8 @@ export const LOW_MEMORY = {
 export const NORMAL_YIELD_BUDGET_MS = 30;
 
 /**
- * The profile with low-memory limits applied, as a copy. Only ever lowers a value, so a user
- * who set something smaller keeps it. Nothing changes when low-memory mode is off.
+ * The profile with low-memory limits applied, as a copy. Sizes only ever go down, so a user
+ * who set something smaller keeps it. Compression is switched off (backups get bigger). Nothing changes when low-memory mode is off.
  */
 export function applyLowMemory(profile: SettingsProfile): SettingsProfile {
   if (!profile.misc.lowMemoryMode) return profile;
@@ -26,6 +26,8 @@ export function applyLowMemory(profile: SettingsProfile): SettingsProfile {
       maxSourceMbPerZip: Math.min(zip.maxSourceMbPerZip, LOW_MEMORY.maxSourceMbPerZip),
       maxOutputZipMb: Math.min(zip.maxOutputZipMb, LOW_MEMORY.maxOutputZipMb),
       maxFilesPerZip: Math.min(zip.maxFilesPerZip, LOW_MEMORY.maxFilesPerZip),
+      // Store without compressing: no deflate buffers, and less CPU on a slow phone.
+      compressionLevel: 0,
     },
     misc: { ...misc, chunkSizeKb: Math.min(misc.chunkSizeKb, LOW_MEMORY.chunkKb) },
   };

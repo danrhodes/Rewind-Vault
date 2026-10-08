@@ -209,7 +209,7 @@ export const FIELDS_D: readonly FieldDef[] = [
     key: "lowMemoryMode",
     kind: "toggle",
     name: "Low-memory mode",
-    desc: "Smaller chunks, for phones that run out of memory on big vaults.",
+    desc: "For phones that run out of memory on big vaults: smaller ZIP parts and chunks, and no compression (backups get bigger).",
   },
   {
     group: "misc",

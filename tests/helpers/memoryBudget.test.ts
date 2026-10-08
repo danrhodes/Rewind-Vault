@@ -24,6 +24,8 @@ describe("applyLowMemory", () => {
     expect(q.zip.maxOutputZipMb).toBe(LOW_MEMORY.maxOutputZipMb);
     expect(q.zip.maxFilesPerZip).toBe(LOW_MEMORY.maxFilesPerZip);
     expect(q.misc.chunkSizeKb).toBe(LOW_MEMORY.chunkKb);
+    expect(q.zip.compressionLevel).toBe(0);
+    expect(p.zip.compressionLevel).toBe(6);
     expect(p.zip.maxSourceMbPerZip).toBe(500);
     expect(p.misc.chunkSizeKb).toBe(1024);
   });

@@ -13,7 +13,7 @@ Planning figure (`estimatePeakMb` in `src/helpers/memoryBudget.ts`):
 | Low-memory mode | 16 MB (files per part 500) | 64 KB | 32 MB |
 
 Low-memory mode only ever lowers a setting: someone who chose a smaller part size keeps it.
-It also shortens the longest uninterrupted work slice from 30 ms to 10 ms, so the UI keeps
+It switches compression off (level 0: files are stored as they are, so backups are bigger but need no compression buffers and less CPU). It also shortens the longest uninterrupted work slice from 30 ms to 10 ms, so the UI keeps
 redrawing on slow phones. The limits are applied in `resolveProfile`, so backup, restore,
 verify and rehearsal all see the same values.
 
