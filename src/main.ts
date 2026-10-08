@@ -1,6 +1,6 @@
 import { Notice, Platform, Plugin } from "obsidian";
 import { Actions, BusyFlag } from "./commands/actions";
-import { buildTimeMachineCommands } from "./timeMachine";
+import { buildRecoveryCommands, buildTimeMachineCommands } from "./timeMachine";
 import { MaintenanceActions, buildMaintenanceCommands } from "./commands/maintenanceActions";
 import { SettingsActions, buildSettingsCommands } from "./commands/settingsActions";
 import { RestoreActions } from "./commands/restoreActions";
@@ -149,6 +149,7 @@ export default class RewindVaultPlugin extends Plugin {
         ...buildSettingsCommands(settingsActions),
         ...buildMaintenanceCommands(maintenance),
         ...buildTimeMachineCommands(this.app, services, restoreActions, confirm),
+        ...buildRecoveryCommands(this.app, services, restoreActions),
       ],
     );
     registerCommands(this, commands, services.getProfile, () => actions.backupNow());

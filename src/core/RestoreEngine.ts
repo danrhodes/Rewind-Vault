@@ -4,7 +4,7 @@ import type { IClock } from "../helpers/time";
 import { createYielder } from "../helpers/yieldToUI";
 import type { IVaultStore } from "../storage/VaultStore";
 import type { SettingsProfile } from "../types";
-import { loadIndex } from "./BackupIndex";
+import { loadIndex, sortedBackups } from "./BackupIndex";
 import { resolveChain, type ResolvedFile, type RestoreSource } from "./ChainResolver";
 import { listFileVersions, type FileVersion } from "./FileVersions";
 import { executeRestore, type RestoreBatchResult } from "./RestoreBatch";
@@ -87,6 +87,13 @@ export interface RestoreVaultRequest {
   overwrite?: boolean;
   /** Vault destination only, and only together with `overwrite`: remove files the backup lacks. */
   deleteExtraneous?: boolean;
+}
+
+export interface DeletedFile {
+  path: string;
+  deletedAt: number;
+  /** The backup that holds the last version of the file. */
+  lastBackupId: string;
 }
 
 export interface RestoreVersionRequest {
@@ -233,6 +240,24 @@ export class RestoreEngine {
     const file = chain.files.get(path.replace(/\/+$/, ""));
     if (!file) throw new RestoreError(`"${path}" is not in this backup`);
     return readResolvedFile(ctx.store, ctx.backupFolder, chain, file, ctx.deriveMasterKey);
+  }
+
+  /**
+   * Files the newest intact backup knows were deleted (tombstones) and that are still missing
+   * from the vault, newest deletion first (deletion time is the backup time that recorded it). `lastBackupId` is the backup holding the last
+   * version, so restoring from it brings the file back.
+   */
+  async listDeleted(): Promise<DeletedFile[]> {
+    const ctx = this.context();
+    const index = await loadIndex(ctx.store, ctx.backupFolder);
+    const newest = sortedBackups(index).find((b) => b.status === "ok");
+    if (!newest) return [];
+    const chain = await resolveChain(ctx.store, ctx.backupFolder, index, { id: newest.id });
+    const missing: DeletedFile[] = [];
+    for (const [path, info] of chain.deletedPaths) {
+      if (!(await ctx.store.exists(path))) missing.push({ path, ...info });
+    }
+    return missing.sort((a, b) => b.deletedAt - a.deletedAt || (a.path < b.path ? -1 : 1));
   }
 
   /** All distinct versions of a file across intact backups, oldest first. */

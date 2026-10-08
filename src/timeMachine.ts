@@ -2,6 +2,7 @@ import type { App } from "obsidian";
 import type { RestoreActions } from "./commands/restoreActions";
 import type { CommandDef } from "./commands/definitions";
 import type { Services } from "./services";
+import { RecoverDeletedModal } from "./ui/RecoverDeletedModal";
 import { TimeMachineModal } from "./ui/TimeMachineModal";
 
 type Confirm = (
@@ -51,6 +52,29 @@ export function buildTimeMachineCommands(
           notifier,
         }).open();
       },
+    },
+  ];
+}
+
+/** The "Recover deleted files" command. */
+export function buildRecoveryCommands(
+  app: App,
+  services: Services,
+  restoreActions: RestoreActions,
+): CommandDef[] {
+  const { restore, notifier } = services;
+  return [
+    {
+      id: "recover-deleted",
+      name: "Recover deleted files",
+      icon: "undo-2",
+      run: () =>
+        new RecoverDeletedModal(app, {
+          listDeleted: () => restore.listDeleted(),
+          recover: (backupId, paths, destination) =>
+            restoreActions.run(backupId, destination, { kind: "files", paths, overwrite: false }),
+          notifier,
+        }).open(),
     },
   ];
 }
