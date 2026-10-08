@@ -1,5 +1,6 @@
 import { Notice, Platform, Plugin } from "obsidian";
 import { Actions, BusyFlag } from "./commands/actions";
+import { SettingsActions, buildSettingsCommands } from "./commands/settingsActions";
 import { RestoreActions } from "./commands/restoreActions";
 import { buildCommands } from "./commands/definitions";
 import { registerCommands } from "./commands/register";
@@ -77,36 +78,52 @@ export default class RewindVaultPlugin extends Plugin {
       },
       busy,
     );
-    const commands = buildCommands(actions, {
-      openBackupBrowser: () =>
-        new BackupBrowserModal(this.app, {
-          loadIndex: () =>
-            loadIndex(services.store, services.getProfile().destination.backupFolder),
-          admin: () => services.admin(),
-          verify: (id) => actions.verifyById(id, 3),
-          restore: (id, createdAt) =>
-            new RestorePreviewModal(this.app, id, createdAt, {
-              actions: restoreActions,
-              snapshotEnabled: () => services.getProfile().safety.preRestoreSnapshot,
-              confirm,
-            }).open(),
-          compare: (id, createdAt) =>
-            new DiffModal(this.app, id, createdAt, {
-              compare: (backupId) =>
-                services.restore.preview({
-                  source: { id: backupId },
-                  scope: { kind: "all" },
-                  destination: { kind: "vault" },
-                  deleteExtraneous: true,
-                }),
-              readBackupFile: (backupId, path) => services.restore.readFile({ id: backupId }, path),
-              readLiveFile: (path) => services.store.readBinary(path),
-              notifier: services.notifier,
-            }).open(),
-          confirm,
-          notifier: services.notifier,
-        }).open(),
+    const settingsActions = new SettingsActions({
+      settings,
+      clipboard: {
+        read: () => navigator.clipboard.readText(),
+        write: (text) => navigator.clipboard.writeText(text),
+      },
+      confirm,
+      save: () => this.saveData(settings),
+      onChanged: () => automation.settingsChanged(),
+      notifier: services.notifier,
     });
+    const commands = buildCommands(
+      actions,
+      {
+        openBackupBrowser: () =>
+          new BackupBrowserModal(this.app, {
+            loadIndex: () =>
+              loadIndex(services.store, services.getProfile().destination.backupFolder),
+            admin: () => services.admin(),
+            verify: (id) => actions.verifyById(id, 3),
+            restore: (id, createdAt) =>
+              new RestorePreviewModal(this.app, id, createdAt, {
+                actions: restoreActions,
+                snapshotEnabled: () => services.getProfile().safety.preRestoreSnapshot,
+                confirm,
+              }).open(),
+            compare: (id, createdAt) =>
+              new DiffModal(this.app, id, createdAt, {
+                compare: (backupId) =>
+                  services.restore.preview({
+                    source: { id: backupId },
+                    scope: { kind: "all" },
+                    destination: { kind: "vault" },
+                    deleteExtraneous: true,
+                  }),
+                readBackupFile: (backupId, path) =>
+                  services.restore.readFile({ id: backupId }, path),
+                readLiveFile: (path) => services.store.readBinary(path),
+                notifier: services.notifier,
+              }).open(),
+            confirm,
+            notifier: services.notifier,
+          }).open(),
+      },
+      [...buildSettingsCommands(settingsActions)],
+    );
     registerCommands(this, commands, services.getProfile, () => actions.backupNow());
 
     services.logger.info("Rewind Vault loaded");

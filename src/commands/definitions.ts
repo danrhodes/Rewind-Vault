@@ -24,7 +24,11 @@ export const RIBBON_TITLE = "Rewind Vault: back up now";
  * The command palette entries. Obsidian shows each as "Rewind Vault: <name>", so the names
  * here do not repeat the plugin name.
  */
-export function buildCommands(actions: Actions, ui: UiActions): CommandDef[] {
+export function buildCommands(
+  actions: Actions,
+  ui: UiActions,
+  extra: readonly CommandDef[] = [],
+): CommandDef[] {
   return [
     { id: "backup-now", name: "Back up now", icon: "history", run: () => actions.backupNow() },
     {
@@ -85,6 +89,7 @@ export function buildCommands(actions: Actions, ui: UiActions): CommandDef[] {
       legacy: true,
       run: () => actions.verifyLatest(6),
     },
+    ...extra,
   ];
 }
 

@@ -7,8 +7,8 @@ Priority: P1 now · P2 schedule · P3 delegate/later · P4 defer.
 ## Status
 - Current phase: 8
 - Last session: 2026-10-08
-- Next task: T-109 (T-005 awaiting MT-1)
-- Tasks done: 80 / 118
+- Next task: T-110 (T-005 awaiting MT-1)
+- Tasks done: 81 / 118
 
 ---
 
@@ -109,7 +109,7 @@ Priority: P1 now · P2 schedule · P3 delegate/later · P4 defer.
 - [x] T-106 [P1] `ui/RestorePreviewModal.ts` with selective checkboxes | T-062 | —
 - [x] T-107 [P1] `ui/VerifyReportModal.ts` | T-073 | —
 - [x] T-108 [P2] `ui/DiffModal.ts` backup vs current | T-063 | —
-- [ ] T-109 [P2] `settings/transfer.ts` export/import via URI + clipboard | T-021 | round-trip test
+- [x] T-109 [P2] `settings/transfer.ts` export/import via URI + clipboard | T-021 | round-trip test
 - [ ] T-110 [P2] Settings passphrase protection | T-109,T-031 | —
 - [ ] T-111 [P2] Reset backup state command | T-046 | forces next full
 - [x] T-112 [P1] Wire triggers (startup, resume, interval, edits, close), RunGuard + conditions, status bar and mass-change/notify hooks into main/services | T-086,T-101,T-104 | all triggers start on load and stop on unload; settings changes restart them
@@ -175,6 +175,7 @@ MT-8 | Obsidian desktop + mobile | Restore dialog: Restore button in the backup 
 MT-9 | Obsidian desktop + mobile | Verify the latest backup (and a corrupted copy): the report dialog opens with headline, level, entries, problems; Copy report puts text on the clipboard (check on mobile); Close and Esc dismiss it | T-107 | pending
 MT-10 | Obsidian desktop + mobile | Automatic triggers: with startup + interval (1 min) on, a backup starts after load and then every minute only when files changed; the status bar (desktop) shows progress then "backed up N min ago"; editing a note with edit-count trigger set to 3 makes a backup; hiding then showing the app after the min gap makes one on resume; changing the interval in settings takes effect without restart; disabling the plugin stops all of it; a manual Back up now during an automatic run says another operation is running | T-112 | pending
 MT-11 | Obsidian desktop + mobile | Browse backups > Compare: summary counts match what you changed since that backup; Show changes on a text note shows +/- lines in green/red with folded unchanged lines; deleted and new files show the right side only; a png says it is not a text file; the dialog stays responsive on a big vault | T-108 | pending
+MT-12 | Obsidian desktop + mobile | Copy settings as a link on one device, Import settings from the clipboard on another (clipboard read permission on iOS/Android): confirm dialog appears, settings change, the other device's stored passphrase is untouched, triggers pick up the new interval without restart | T-109 | pending
 
 ## Ideas Parking Lot
 _Out-of-plan ideas. Do not build until promoted to a task._
@@ -264,3 +265,4 @@ _Format: `YYYY-MM-DD | tasks touched | tests added | decisions | blockers | next
 - 2026-10-08 | T-107 done | tests/ui/verifyReportModel.test.ts (8: pass summary, problem count + location text, singular, sampling note, skipped checks do not fail, rehearsal lines, clipboard text, empty sections omitted) | Pure verifyReportModel.ts builds the text; VerifyReportModal.ts only draws it (headline, summary, rehearsal, problems, skipped, Copy report, Close). Wired via ActionDeps.results.showVerifyReport in main.ts, so every verify command and the browser Verify button open it. | — | T-108
 - 2026-10-08 | T-112 done | tests/triggers/AutoBackup.test.ts (6: configured style runs and reports, style off does nothing, busy flag respected and not released, blocked condition frees the flag, failure reported and swallowed with status error, LockError rethrown for the guard) and tests/triggers/TriggerManager.test.ts (4: all triggers start on load, all stop on unload incl. a late ready callback, reconfigure restarts only the scheduler and never re-fires startup, reconfigure before start ignored) | New triggers/AutoBackup.ts (style, conditions, engine, notices, status) behind one shared RunGuard; triggers/TriggerManager.ts owns the five triggers; automation.ts + obsidianHosts.ts are the only Obsidian-facing glue (timers via registerInterval, vault events, beforeunload, status bar item). Manual and automatic runs share one BusyFlag; manual backups also update the status bar (ActionDeps.status). Settings tab onChanged restarts the scheduler. Mass-change guard hook is deferred to T-120, which plugs into AutoBackup. Services gained verifyDeps for the scheduled deep verify. | — | T-108
 - 2026-10-08 | T-108 done | tests/ui/diffModel.test.ts (13: line diff change/add/remove, equal and empty text, too-large guard, context folding, comparison rows sorted, summaries, row text, text-path detection, invalid UTF-8, added/removed counts with the backup as old side, missing side, binary unavailable) and tests/core/RestoreEngine.readFile.test.ts (3: content per backup with nothing written, file stored in the base, missing file rejected) | New RestoreEngine.readFile reads one verified file into memory. New helpers/lineDiff.ts (LCS with common prefix/suffix trimmed, null above 4M cells). The comparison reuses RestoreEngine.preview with vault destination + deleteExtraneous, so no new planning code. "-" = only in the backup, "+" = only in the vault now. Opened from a Compare button in the backup browser. | — | T-109
+- 2026-10-08 | T-109 done | tests/settings/transfer.test.ts (7: round trip, no passphrase in the link, source not mutated, link/bare/JSON accepted, garbage/format/version/size rejected, hostile values sanitised, in-place apply keeps local passphrase) and tests/commands/settingsActions.test.ts (5: copy, import with confirm + save + onChanged, decline, bad clipboard, two commands) | Link = `rewind-vault://settings/<base64url JSON envelope>` holding BOTH profiles; stored passphrases are never exported and never overwritten on import. Import goes through migrateSettings so bad values are clamped/dropped. QR (T-138) can reuse this text. Two palette commands (Copy settings as a link, Import settings from the clipboard) via a new `extra` argument on buildCommands; no new setting, so no settings-tab field. | — | T-110
