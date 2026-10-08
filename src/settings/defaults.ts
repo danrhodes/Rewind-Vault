@@ -39,6 +39,8 @@ function baseProfile(): SettingsProfile {
       dailyTimes: [],
       afterEditsEnabled: false,
       afterEdits: 100,
+      afterWordsEnabled: false,
+      afterWords: 500,
       idleEnabled: false,
       idleMinutes: 10,
       onCreate: false,

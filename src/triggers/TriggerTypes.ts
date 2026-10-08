@@ -9,6 +9,7 @@ export type TriggerReason =
   | "interval"
   | "daily"
   | "edits"
+  | "words"
   | "idle"
   | "create"
   | "delete"

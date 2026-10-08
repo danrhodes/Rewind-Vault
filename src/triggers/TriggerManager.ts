@@ -1,5 +1,6 @@
 import type { IPlatform } from "../helpers/platform";
 import { CloseTrigger, type CloseEvents } from "./CloseTrigger";
+import { EditVolumeTrigger, type NoteReader } from "./EditVolumeTrigger";
 import { EventTrigger, type VaultEvents } from "./EventTrigger";
 import { PreRiskTrigger, type PluginChecker } from "./PreRiskTrigger";
 import { ResumeTrigger } from "./ResumeTrigger";
@@ -18,6 +19,8 @@ export interface TriggerManagerDeps {
   whenReady: (callback: () => void) => void;
   lastBackupAt: () => Promise<number | null>;
   deepVerify?: DeepVerifyJob;
+  /** Reads a note for the word-count trigger; omit to leave that trigger out. */
+  readNote?: NoteReader;
   /** Scheduled restore rehearsal. */
   rehearsal?: DeepVerifyJob;
   /** Reports installed or updated plugins; omit to snapshot only before bulk deletes/renames. */
@@ -35,6 +38,7 @@ export class TriggerManager {
   private readonly resume: ResumeTrigger;
   private readonly events: EventTrigger;
   private readonly close: CloseTrigger;
+  private readonly editVolume: EditVolumeTrigger | null;
   private readonly preRisk: PreRiskTrigger;
   private started = false;
 
@@ -45,6 +49,9 @@ export class TriggerManager {
     this.resume = new ResumeTrigger(triggers, platform, { lastBackupAt: deps.lastBackupAt });
     this.events = new EventTrigger(triggers, timers, deps.events);
     this.close = new CloseTrigger(triggers, platform, deps.close);
+    this.editVolume = deps.readNote
+      ? new EditVolumeTrigger(triggers, timers, deps.events, deps.readNote)
+      : null;
     this.preRisk = new PreRiskTrigger(triggers, timers, deps.events, deps.plugins ?? null);
   }
 
@@ -58,6 +65,7 @@ export class TriggerManager {
     this.scheduler.start();
     this.resume.start();
     this.events.start();
+    this.editVolume?.start();
     this.close.start();
     this.preRisk.start(this.deps.whenReady);
   }
@@ -73,6 +81,7 @@ export class TriggerManager {
     this.scheduler.stop();
     this.resume.stop();
     this.events.stop();
+    this.editVolume?.stop();
     this.close.stop();
     this.preRisk.stop();
   }

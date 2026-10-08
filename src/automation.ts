@@ -2,6 +2,7 @@ import type { Plugin } from "obsidian";
 import type { BusyFlag } from "./commands/actions";
 import { loadIndex, sortedBackups } from "./core/BackupIndex";
 import { MassChangeGuard } from "./core/MassChangeGuard";
+import { MAX_NOTE_BYTES } from "./triggers/EditVolumeTrigger";
 import { PluginWatch } from "./core/PluginWatch";
 import { isRehearsalDue, runScheduledRehearsal } from "./core/ScheduledRehearsal";
 import { isDeepVerifyDue, runDeepVerify } from "./core/DeepVerify";
@@ -133,6 +134,11 @@ export function createAutomation(plugin: Plugin, services: Services, busy: BusyF
     close: createCloseEvents(),
     whenReady: (callback) => plugin.app.workspace.onLayoutReady(callback),
     lastBackupAt,
+    readNote: async (path) => {
+      const stat = await store.stat(path);
+      if (!stat || stat.type !== "file" || stat.size > MAX_NOTE_BYTES) return null;
+      return new TextDecoder().decode(await store.readBinary(path));
+    },
     plugins: new PluginWatch({
       store,
       logger,

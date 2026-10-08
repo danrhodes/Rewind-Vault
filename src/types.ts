@@ -192,6 +192,9 @@ export interface TriggerSettings {
   dailyTimes: string[];
   afterEditsEnabled: boolean;
   afterEdits: number;
+  /** Back up after this many words have been typed or deleted in notes. */
+  afterWordsEnabled: boolean;
+  afterWords: number;
   idleEnabled: boolean;
   idleMinutes: number;
   onCreate: boolean;
