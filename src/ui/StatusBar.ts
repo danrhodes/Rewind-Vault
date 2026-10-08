@@ -116,3 +116,10 @@ function progressText(p: RunProgress): string {
     }
   }
 }
+
+/** What a running backup tells the status bar. Implemented by main with the StatusBar + index. */
+export interface BackupStatusSink {
+  progress(progress: RunProgress): void;
+  /** The run ended: `ok` false means it failed (a skipped or cancelled run counts as ok). */
+  finished(ok: boolean): void;
+}

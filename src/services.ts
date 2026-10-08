@@ -2,7 +2,7 @@ import { FILE_NAMES } from "./constants";
 import { BackupAdmin } from "./core/BackupAdmin";
 import { BackupEngine } from "./core/BackupEngine";
 import { RestoreEngine } from "./core/RestoreEngine";
-import { verifyAndRecord } from "./core/VerifyRunner";
+import { verifyAndRecord, type VerifyRunnerDeps } from "./core/VerifyRunner";
 import type { VerifyOptions } from "./core/VerifyEngine";
 import { PassphraseService, type PassphrasePrompt } from "./crypto/passphrase";
 import type { ILogger } from "./helpers/logger";
@@ -36,6 +36,8 @@ export interface Services {
   readonly notifier: Notifier;
   /** Verify an existing backup under the backup lock and record the result (marks corrupt on failure). */
   verifyBackup(backupId: string, options: VerifyOptions): Promise<VerifyReport>;
+  /** What verification and deep verify need; used by the scheduler. */
+  readonly verifyDeps: VerifyRunnerDeps;
   /** Effective settings for this platform. Re-read after settings change. */
   getProfile(): SettingsProfile;
   saveSettings(): Promise<void>;
@@ -80,6 +82,15 @@ export function createServices(deps: ServiceDeps): Services {
   const getProfile = (): SettingsProfile => resolveProfileFor(settings, platform);
   const deriveMasterKey = (salt: Uint8Array, iterations: number): Promise<Uint8Array> =>
     passphrase.getKey(salt, iterations);
+
+  const verifyDeps: VerifyRunnerDeps = {
+    store,
+    logger,
+    clock,
+    getProfile,
+    platform: platform.kind,
+    deriveMasterKey,
+  };
 
   const backup = new BackupEngine({
     store,
@@ -126,12 +137,8 @@ export function createServices(deps: ServiceDeps): Services {
       });
     },
     notifier: new Notifier(deps.showNotice ?? (() => undefined), getProfile),
-    verifyBackup: (backupId, options) =>
-      verifyAndRecord(
-        { store, logger, clock, getProfile, platform: platform.kind, deriveMasterKey },
-        backupId,
-        options,
-      ),
+    verifyBackup: (backupId, options) => verifyAndRecord(verifyDeps, backupId, options),
+    verifyDeps,
     getProfile,
     saveSettings: deps.saveSettings,
   };

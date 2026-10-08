@@ -1,0 +1,59 @@
+import type { BackupEngine } from "../core/BackupEngine";
+import { runOptionsForStyle } from "../core/RunStyle";
+import { LockError } from "../helpers/errors";
+import type { ILogger } from "../helpers/logger";
+import type { BackupStatusSink } from "../ui/StatusBar";
+import type { Notifier } from "../ui/notify";
+import type { SettingsProfile } from "../types";
+import type { ConditionResult } from "./Conditions";
+import type { RunRequest } from "./TriggerTypes";
+
+export interface AutoBackupDeps {
+  backup: Pick<BackupEngine, "run">;
+  /** Battery, Wi-Fi, free space and no-change checks (see Conditions.ts). */
+  conditions: () => Promise<ConditionResult>;
+  notifier: Notifier;
+  logger: ILogger;
+  getProfile: () => SettingsProfile;
+  /** Shared with the manual commands so an automatic run never overlaps a manual one. */
+  busy: { tryAcquire(): boolean; release(): void };
+  status?: BackupStatusSink;
+}
+
+/**
+ * What a trigger's request actually does: pick the configured automatic style, check the
+ * conditions, run the engine, and report. Always used behind the RunGuard. A LockError is
+ * rethrown for the guard to log quietly; every other failure is reported here (notice, log,
+ * status bar) and swallowed so one failed run never stops later triggers.
+ */
+export function createAutoBackup(deps: AutoBackupDeps): RunRequest {
+  return async (reason) => {
+    const { logger, notifier, status } = deps;
+    const options = runOptionsForStyle(deps.getProfile().basic.autoStyle);
+    if (!options) {
+      logger.debug(`Automatic backup ("${reason}") ignored: automatic style is off`);
+      return;
+    }
+    if (!deps.busy.tryAcquire()) {
+      logger.debug(`Automatic backup ("${reason}") dropped: another operation is running`);
+      return;
+    }
+    let ok = true;
+    try {
+      if (!(await deps.conditions()).ok) return;
+      logger.info(`Automatic backup started (${reason})`);
+      const result = await deps.backup.run({ ...options, onProgress: (p) => status?.progress(p) });
+      notifier.backupResult(result);
+    } catch (error) {
+      if (error instanceof LockError) throw error;
+      ok = false;
+      logger.error(
+        `Automatic backup failed: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      notifier.failure("Automatic backup", error);
+    } finally {
+      deps.busy.release();
+      status?.finished(ok);
+    }
+  };
+}

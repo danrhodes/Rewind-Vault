@@ -8,6 +8,7 @@ import { CancelledError, InsufficientSpaceError, LockError } from "../helpers/er
 import type { ILogger } from "../helpers/logger";
 import type { IVaultStore } from "../storage/VaultStore";
 import type { SettingsProfile, VerifyLevel, VerifyReport } from "../types";
+import type { BackupStatusSink } from "../ui/StatusBar";
 import type { Notifier } from "../ui/notify";
 import { CancelSource } from "../ui/progressModel";
 
@@ -59,6 +60,8 @@ export interface ActionDeps {
   getProfile: () => SettingsProfile;
   progress: ProgressUi;
   results?: ResultUi;
+  /** Mirrors manual backups in the status bar. */
+  status?: BackupStatusSink;
 }
 
 const describe = (error: unknown): string =>
@@ -154,23 +157,29 @@ export class Actions {
   }
 
   private async runBackup(options: RunOptions, resume: boolean): Promise<void> {
-    const { notifier, backup, progress } = this.deps;
+    const { notifier, backup, progress, status } = this.deps;
     if (!this.acquire()) return;
+    let ok = true;
     const cancel = new CancelSource();
     const handle = progress.open(resume ? "Resuming backup" : "Backing up", cancel);
     try {
       const run = resume ? backup.resume.bind(backup) : backup.run.bind(backup);
       const result = await run({
         ...options,
-        onProgress: (p) => handle.updateBackup(p),
+        onProgress: (p) => {
+          handle.updateBackup(p);
+          status?.progress(p);
+        },
         isCancelled: cancel.isCancelled,
       });
       notifier.backupResult(result);
     } catch (error) {
+      ok = error instanceof CancelledError;
       this.reportFailure("Backup", error);
     } finally {
       handle.close();
       this.flag.release();
+      status?.finished(ok);
     }
   }
 

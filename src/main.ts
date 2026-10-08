@@ -4,6 +4,7 @@ import { RestoreActions } from "./commands/restoreActions";
 import { buildCommands } from "./commands/definitions";
 import { registerCommands } from "./commands/register";
 import { createPlatform } from "./helpers/platform";
+import { createAutomation, type Automation } from "./automation";
 import { createServices, type Services } from "./services";
 import { migrateSettings } from "./settings/migrate";
 import { RewindVaultSettingTab } from "./settings/SettingsTab";
@@ -18,6 +19,7 @@ import { createProgressUi } from "./ui/progressHost";
 /** Lifecycle only: load settings, build services, register things, clean up. */
 export default class RewindVaultPlugin extends Plugin {
   private services: Services | null = null;
+  private automation: Automation | null = null;
 
   override async onload(): Promise<void> {
     const settings = migrateSettings(await this.loadData());
@@ -36,10 +38,13 @@ export default class RewindVaultPlugin extends Plugin {
         settings,
         platform: Platform.isMobile ? "mobile" : "desktop",
         save: () => this.saveData(settings),
+        onChanged: () => this.automation?.settingsChanged(),
       }),
     );
 
     const busy = new BusyFlag();
+    const automation = createAutomation(this, services, busy);
+    this.automation = automation;
     const progress = createProgressUi(this.app);
     const confirm = (title: string, message: string, label: string, dangerous: boolean) =>
       new ConfirmModal(this.app, title, message, label, dangerous).ask();
@@ -61,6 +66,7 @@ export default class RewindVaultPlugin extends Plugin {
         notifier: services.notifier,
         getProfile: services.getProfile,
         progress,
+        status: automation.status,
         results: {
           showVerifyReport: (report) =>
             new VerifyReportModal(this.app, report, (text) =>
@@ -90,10 +96,12 @@ export default class RewindVaultPlugin extends Plugin {
     registerCommands(this, commands, services.getProfile, () => actions.backupNow());
 
     services.logger.info("Rewind Vault loaded");
-    // Triggers, the status bar and the remaining screens are wired by later tasks.
+    automation.start((callback) => this.app.workspace.onLayoutReady(callback));
   }
 
   override onunload(): void {
+    this.automation?.stop();
+    this.automation = null;
     this.services?.passphrase.clear();
     this.services?.logger.info("Rewind Vault unloaded");
     this.services = null;

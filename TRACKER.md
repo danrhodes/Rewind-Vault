@@ -8,7 +8,7 @@ Priority: P1 now · P2 schedule · P3 delegate/later · P4 defer.
 - Current phase: 8
 - Last session: 2026-10-08
 - Next task: T-108 (T-005 awaiting MT-1)
-- Tasks done: 78 / 118
+- Tasks done: 79 / 118
 
 ---
 
@@ -112,7 +112,7 @@ Priority: P1 now · P2 schedule · P3 delegate/later · P4 defer.
 - [ ] T-109 [P2] `settings/transfer.ts` export/import via URI + clipboard | T-021 | round-trip test
 - [ ] T-110 [P2] Settings passphrase protection | T-109,T-031 | —
 - [ ] T-111 [P2] Reset backup state command | T-046 | forces next full
-- [ ] T-112 [P1] Wire triggers (startup, resume, interval, edits, close), RunGuard + conditions, status bar and mass-change/notify hooks into main/services | T-086,T-101,T-104 | all triggers start on load and stop on unload; settings changes restart them
+- [x] T-112 [P1] Wire triggers (startup, resume, interval, edits, close), RunGuard + conditions, status bar and mass-change/notify hooks into main/services | T-086,T-101,T-104 | all triggers start on load and stop on unload; settings changes restart them
 
 ## Phase 9 — Safety extras
 - [ ] T-120 [P1] `MassChangeGuard` pause on >N changes in M s | T-042 | threshold tests; protects last good backup
@@ -173,6 +173,7 @@ MT-6 | Obsidian desktop + mobile | Command palette shows Rewind Vault: Back up n
 MT-7 | Obsidian desktop + mobile | Browse backups: list shows newest first with badges, search filters live, Verify runs and reports, Pin/Unpin toggles, Delete shows the dependents/pinned/only-intact warnings and removes folder + entry, a backup made while the browser is open appears after reopening | T-105 | pending
 MT-8 | Obsidian desktop + mobile | Restore dialog: Restore button in the backup browser opens it; default destination is the restore folder with everything ticked; switching to My vault unticks files that differ; group checkboxes (incl. indeterminate) and single ticks update the summary live; restoring into the vault asks for confirmation and takes a safety snapshot; restored files appear and open correctly; Cancel in the progress dialog stops a large restore | T-106 | pending
 MT-9 | Obsidian desktop + mobile | Verify the latest backup (and a corrupted copy): the report dialog opens with headline, level, entries, problems; Copy report puts text on the clipboard (check on mobile); Close and Esc dismiss it | T-107 | pending
+MT-10 | Obsidian desktop + mobile | Automatic triggers: with startup + interval (1 min) on, a backup starts after load and then every minute only when files changed; the status bar (desktop) shows progress then "backed up N min ago"; editing a note with edit-count trigger set to 3 makes a backup; hiding then showing the app after the min gap makes one on resume; changing the interval in settings takes effect without restart; disabling the plugin stops all of it; a manual Back up now during an automatic run says another operation is running | T-112 | pending
 
 ## Ideas Parking Lot
 _Out-of-plan ideas. Do not build until promoted to a task._
@@ -260,3 +261,4 @@ _Format: `YYYY-MM-DD | tasks touched | tests added | decisions | blockers | next
 - 2026-10-07 | T-160 DRAFT (task stays [ ]: its deps, all P1 tasks, are not done) | no automated tests for the script; verified by hand | README.md written for testers and future BRAT users: status banner, install from source, commands, restore flow, backup folder layout, sync warning, settings table, retention vs differential caveat, encryption incl. decrypt recipe, mobile limits, safety design, known limitations, development. New tools/decrypt-backup.mjs (Node 18+, no packages, reads the ZIP central directory itself) VERIFIED against real encrypted backups made by the plugin with real PBKDF2: a small note and a 700 KB multi-frame file (64 KB chunks) came back byte-identical (cmp), and a wrong passphrase fails cleanly with exit 1. README is deliberately honest that triggers, status bar, mass-change guard, pre-risk snapshots, daily-note alerts, external copy and low-memory mode are not wired or built, and that encryption currently works only with a stored passphrase (no passphrase prompt UI exists yet: services.promptPassphrase is unset, so prompting counts as cancelled). Update the README when T-112 and the passphrase prompt land. No LICENSE file exists yet although package.json and README say MIT. | — | T-107
 - 2026-10-07 | LICENSE added (no task) | none | MIT, copyright 2026 Dan Rhodes (name from manifest.json author), at the owner request; README License section links it. Closes the gap noted in the T-160 draft entry. | — | T-107
 - 2026-10-08 | T-107 done | tests/ui/verifyReportModel.test.ts (8: pass summary, problem count + location text, singular, sampling note, skipped checks do not fail, rehearsal lines, clipboard text, empty sections omitted) | Pure verifyReportModel.ts builds the text; VerifyReportModal.ts only draws it (headline, summary, rehearsal, problems, skipped, Copy report, Close). Wired via ActionDeps.results.showVerifyReport in main.ts, so every verify command and the browser Verify button open it. | — | T-108
+- 2026-10-08 | T-112 done | tests/triggers/AutoBackup.test.ts (6: configured style runs and reports, style off does nothing, busy flag respected and not released, blocked condition frees the flag, failure reported and swallowed with status error, LockError rethrown for the guard) and tests/triggers/TriggerManager.test.ts (4: all triggers start on load, all stop on unload incl. a late ready callback, reconfigure restarts only the scheduler and never re-fires startup, reconfigure before start ignored) | New triggers/AutoBackup.ts (style, conditions, engine, notices, status) behind one shared RunGuard; triggers/TriggerManager.ts owns the five triggers; automation.ts + obsidianHosts.ts are the only Obsidian-facing glue (timers via registerInterval, vault events, beforeunload, status bar item). Manual and automatic runs share one BusyFlag; manual backups also update the status bar (ActionDeps.status). Settings tab onChanged restarts the scheduler. Mass-change guard hook is deferred to T-120, which plugs into AutoBackup. Services gained verifyDeps for the scheduled deep verify. | — | T-108
