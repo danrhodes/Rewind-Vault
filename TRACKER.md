@@ -7,8 +7,8 @@ Priority: P1 now · P2 schedule · P3 delegate/later · P4 defer.
 ## Status
 - Current phase: 10
 - Last session: 2026-10-08
-- Next task: T-132 (T-005 awaiting MT-1)
-- Tasks done: 90 / 118
+- Next task: T-133 (T-005 awaiting MT-1)
+- Tasks done: 91 / 118
 
 ---
 
@@ -124,7 +124,7 @@ Priority: P1 now · P2 schedule · P3 delegate/later · P4 defer.
 ## Phase 10 — Novel features
 - [x] T-130 [P1] Per-note time machine (commands + modal) | T-068,T-108 | —
 - [x] T-131 [P2] Tombstone recovery command | T-048,T-063 | —
-- [ ] T-132 [P2] Pinned milestones UI (name on create) | T-094 | —
+- [x] T-132 [P2] Pinned milestones UI (name on create) | T-094 | —
 - [ ] T-133 [P2] `Backup Status.md` health note with frontmatter | T-073 | Dataview-readable
 - [ ] T-134 [P2] Monthly restore rehearsal (scheduled) | T-079,T-082 | —
 - [ ] T-135 [P2] Restore link report | T-063 | lists broken/fixed wikilinks
@@ -186,6 +186,7 @@ MT-18 | Obsidian desktop + mobile | Create "Test (conflicted copy 2026-10-08).md
 MT-19 | Obsidian desktop (Windows + one of Mac/Linux) | Set destination to External copy with an absolute folder (e.g. D:\Backups\vault), run Back up now: a folder named like the backup appears there with part-*.zip and manifest.json, no .tmp files; it unzips with a normal tool; point the path at an unplugged drive / read-only folder and confirm an error notice while the in-vault backup still exists; on mobile the option is hidden and nothing is copied | T-124 | pending
 MT-20 | Obsidian desktop + mobile | Time machine: edit a note across 3 backups, run "Time machine for the current note": versions listed newest first, the one equal to now says "same as now", Show changes shows +/- lines, Restore copy puts the file in restore/<backup id>/, Replace note asks to confirm and the note changes (a safety backup is made first); a deleted-then-recreated note shows its deletion point; with no note open a notice says so | T-130 | pending
 MT-21 | Obsidian desktop + mobile | Delete two notes, run Back up now, run "Recover deleted files": both listed, search filters, ticking one and Recover to my vault brings it back with its last content and it disappears from the list; Recover to the restore folder writes under restore/<backup id>/ | T-131 | pending
+MT-22 | Obsidian desktop + mobile | Milestones: "Create a named milestone" asks for a name, shows the progress dialog, and the backup then appears in Browse backups as [pinned] with that name; Pin in the browser asks for a name (Cancel leaves it unpinned); with keep-last 1 and several later backups the milestone survives retention | T-132 | pending
 
 ## Ideas Parking Lot
 _Out-of-plan ideas. Do not build until promoted to a task._
@@ -286,3 +287,4 @@ _Format: `YYYY-MM-DD | tasks touched | tests added | decisions | blockers | next
 - 2026-10-08 | T-124 done | tests/storage/ExternalCopy.test.ts (path validation 12, copy order with manifest last, failed write leaves no manifest or temp file, short write detected, relative path / missing manifest refused, a real-file-system round trip in a temp folder, loadNodeFs null without require or when loading throws), tests/core/BackupMirror.test.ts (5: copy + backup stays in the vault, vault destination does nothing, skipped run not copied, failed copy keeps the backup and reports the reason, bad path / mobile / no fs reported without copying), 1 in tests/ui/notify.test.ts | storage/ExternalCopy.ts is the only file that touches Node: fs is found at run time through the global `require` (the built main.js has no import of fs, checked). core/BackupMirror wraps BackupEngine: after a completed run with destination "external" on desktop it mirrors the backup folder to `<externalPath>/<backup folder>/` (temp name, size check, rename, manifest last). The backup is always made in the vault first; a failed copy is reported in the result and as an error notice, never fails the backup. The external folder is a plain mirror: retention and deletes do not touch it, and nothing restores from it automatically (copy a folder back into the backup folder to use it). Pre-restore snapshots are mirrored too. | — | T-130
 - 2026-10-08 | T-130 done | tests/ui/timeMachineModel.test.ts (6: newest first with sizes and deletion points, version identical to the note marked, input not mutated, timeline text) | Command "Time machine for the current note" opens ui/TimeMachineModal: every saved version of the active note across backups (core listFileVersions from T-068), Show changes (line diff against the note now, reuses diffModel), Restore copy (to the restore folder, overwrite allowed there), Replace note (restore into the vault with confirmation; the existing pre-restore snapshot setting protects the current text). Wiring is in src/timeMachine.ts, not main.ts. | — | T-131
 - 2026-10-08 | T-131 done | tests/core/RestoreEngine.deleted.test.ts (4: lists tombstoned files still missing with the backup holding the last version, drops files recreated by hand, empty cases, restoring from the listed backup brings the last version back), tests/ui/recoverModel.test.ts (6: filter, grouping by backup, summary text) | New RestoreEngine.listDeleted reads the newest intact backup's chain (ChainResolver.deletedPaths) and keeps paths absent from the vault. Command "Recover deleted files" opens ui/RecoverDeletedModal (search, tick, Recover to my vault / to the restore folder); restores go through RestoreActions so they get the progress dialog and busy flag. Limits: only deletions recorded in the newest chain are listed (a file deleted before the latest full backup is no longer in that chain; use the time machine on an older backup), and the deletion time shown is the time of the backup that recorded it. | — | T-132
+- 2026-10-08 | T-132 done | tests/commands/milestoneActions.test.ts (6: name cleaning, full backup pinned with the cleaned name, empty name pins without a label, cancelled prompt makes nothing, no backup means no pin, palette command) | Pinning (retention-exempt since T-094) now asks for a name: the Pin button in the backup browser opens a text prompt (new ui/TextPromptModal; cancel aborts, empty name pins unnamed), and the new command "Create a named milestone (full backup, kept)" asks for a name, makes a FULL backup (self-contained, no chain needed) and pins it. Actions.backupForMilestone returns the new backup id; runBackup now returns its result internally. Names: whitespace collapsed, max 80 chars. | — | T-133

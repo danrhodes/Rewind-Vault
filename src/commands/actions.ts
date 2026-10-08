@@ -1,7 +1,7 @@
 import { loadIndex, sortedBackups } from "../core/BackupIndex";
 import type { BackupEngine } from "../core/BackupEngine";
 import type { RestoreProgress } from "../core/RestoreTypes";
-import type { RunOptions, RunProgress } from "../core/RunTypes";
+import type { RunOptions, RunProgress, RunResult } from "../core/RunTypes";
 import { runOptionsForStyle } from "../core/RunStyle";
 import type { VerifyOptions } from "../core/VerifyEngine";
 import { CancelledError, InsufficientSpaceError, LockError } from "../helpers/errors";
@@ -85,19 +85,21 @@ export class Actions {
   /** "Backup now": the configured automatic style, or differential when that is "off". */
   backupNow(): Promise<void> {
     const style = this.deps.getProfile().basic.autoStyle;
-    return this.runBackup(runOptionsForStyle(style) ?? { mode: "diff" }, false);
+    return this.runBackup(runOptionsForStyle(style) ?? { mode: "diff" }, false).then(
+      () => undefined,
+    );
   }
 
   backupFull(): Promise<void> {
-    return this.runBackup({ mode: "full" }, false);
+    return this.runBackup({ mode: "full" }, false).then(() => undefined);
   }
 
   backupDifferential(): Promise<void> {
-    return this.runBackup({ mode: "diff" }, false);
+    return this.runBackup({ mode: "diff" }, false).then(() => undefined);
   }
 
   backupNonDestructive(): Promise<void> {
-    return this.runBackup({ mode: "diff", nonDestructive: true }, false);
+    return this.runBackup({ mode: "diff", nonDestructive: true }, false).then(() => undefined);
   }
 
   /** Continue an interrupted backup, or tell the user there is none. */
@@ -107,7 +109,7 @@ export class Actions {
       this.deps.notifier.info("There is no interrupted backup to resume.");
       return;
     }
-    return this.runBackup({ mode: info.type }, true);
+    return this.runBackup({ mode: info.type }, true).then(() => undefined);
   }
 
   /** Verify the newest backup (any status, so a damaged one can be re-checked). */
@@ -156,9 +158,19 @@ export class Actions {
       notifier.warning(`Some checks were skipped: ${report.skipped.join("; ")}`);
   }
 
-  private async runBackup(options: RunOptions, resume: boolean): Promise<void> {
+  /**
+   * A full backup meant to be kept as a named milestone (self-contained, so it restores
+   * without any chain). Resolves to the id of the backup made, or null if none was made
+   * (busy, cancelled, failed).
+   */
+  async backupForMilestone(): Promise<string | null> {
+    const result = await this.runBackup({ mode: "full" }, false);
+    return result?.status === "completed" ? result.backupId : null;
+  }
+
+  private async runBackup(options: RunOptions, resume: boolean): Promise<RunResult | null> {
     const { notifier, backup, progress, status } = this.deps;
-    if (!this.acquire()) return;
+    if (!this.acquire()) return null;
     let ok = true;
     const cancel = new CancelSource();
     const handle = progress.open(resume ? "Resuming backup" : "Backing up", cancel);
@@ -173,9 +185,11 @@ export class Actions {
         isCancelled: cancel.isCancelled,
       });
       notifier.backupResult(result);
+      return result;
     } catch (error) {
       ok = error instanceof CancelledError;
       this.reportFailure("Backup", error);
+      return null;
     } finally {
       handle.close();
       this.flag.release();

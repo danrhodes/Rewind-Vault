@@ -1,4 +1,5 @@
 import { Modal, type App } from "obsidian";
+import { normaliseMilestoneName } from "../commands/milestoneActions";
 import { deleteImpact, type BackupAdmin } from "../core/BackupAdmin";
 import type { BackupIndex } from "../types";
 import {
@@ -17,6 +18,8 @@ export interface BrowserHost {
   verify(backupId: string): Promise<void>;
   /** Open the restore dialog for this backup. */
   restore(backupId: string, createdAt: number): void;
+  /** Ask for a name (milestone label); null when cancelled. */
+  askName(title: string, message: string): Promise<string | null>;
   /** Open the comparison with the live vault for this backup. */
   compare(backupId: string, createdAt: number): void;
   confirm(
@@ -125,7 +128,16 @@ export class BackupBrowserModal extends Modal {
 
   private async togglePin(row: BackupRow): Promise<void> {
     try {
-      await this.host.admin().setPinned(row.id, !row.pinned);
+      let label: string | undefined;
+      if (!row.pinned) {
+        const name = await this.host.askName(
+          "Pin this backup",
+          "Give it a name (optional). Pinned backups are never removed by retention.",
+        );
+        if (name === null) return;
+        label = normaliseMilestoneName(name) || undefined;
+      }
+      await this.host.admin().setPinned(row.id, !row.pinned, label);
     } catch (error) {
       this.host.notifier.failure("Pinning", error);
     }

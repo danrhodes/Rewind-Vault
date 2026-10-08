@@ -1,5 +1,7 @@
 import { Notice, Platform, Plugin } from "obsidian";
 import { Actions, BusyFlag } from "./commands/actions";
+import { MilestoneActions, buildMilestoneCommands } from "./commands/milestoneActions";
+import { TextPromptModal } from "./ui/TextPromptModal";
 import { buildRecoveryCommands, buildTimeMachineCommands } from "./timeMachine";
 import { MaintenanceActions, buildMaintenanceCommands } from "./commands/maintenanceActions";
 import { SettingsActions, buildSettingsCommands } from "./commands/settingsActions";
@@ -112,6 +114,14 @@ export default class RewindVaultPlugin extends Plugin {
       busy,
       massChange: automation.massChange,
     });
+    const askName = (title: string, message: string) =>
+      new TextPromptModal(this.app, title, message, "Name", "OK").ask();
+    const milestones = new MilestoneActions({
+      backupForMilestone: () => actions.backupForMilestone(),
+      admin: () => services.admin(),
+      askName,
+      notifier: services.notifier,
+    });
     const commands = buildCommands(
       actions,
       {
@@ -120,6 +130,7 @@ export default class RewindVaultPlugin extends Plugin {
             loadIndex: () =>
               loadIndex(services.store, services.getProfile().destination.backupFolder),
             admin: () => services.admin(),
+            askName,
             verify: (id) => actions.verifyById(id, 3),
             restore: (id, createdAt) =>
               new RestorePreviewModal(this.app, id, createdAt, {
@@ -150,6 +161,7 @@ export default class RewindVaultPlugin extends Plugin {
         ...buildMaintenanceCommands(maintenance),
         ...buildTimeMachineCommands(this.app, services, restoreActions, confirm),
         ...buildRecoveryCommands(this.app, services, restoreActions),
+        ...buildMilestoneCommands(milestones),
       ],
     );
     registerCommands(this, commands, services.getProfile, () => actions.backupNow());
