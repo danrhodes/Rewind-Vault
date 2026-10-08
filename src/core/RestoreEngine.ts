@@ -4,11 +4,12 @@ import type { IClock } from "../helpers/time";
 import { createYielder } from "../helpers/yieldToUI";
 import type { IVaultStore } from "../storage/VaultStore";
 import type { SettingsProfile } from "../types";
-import type { ResolvedFile, RestoreSource } from "./ChainResolver";
+import { loadIndex } from "./BackupIndex";
+import { resolveChain, type ResolvedFile, type RestoreSource } from "./ChainResolver";
 import { listFileVersions, type FileVersion } from "./FileVersions";
 import { executeRestore, type RestoreBatchResult } from "./RestoreBatch";
 import { planRestore } from "./RestorePlan";
-import type { MasterKeyFn } from "./RestoreReader";
+import { readResolvedFile, type MasterKeyFn } from "./RestoreReader";
 import {
   destinationPath,
   type RestoreContext,
@@ -219,6 +220,19 @@ export class RestoreEngine {
       deleteExtraneous: request.deleteExtraneous,
     });
     return executeRestore(ctx, plan, { overwrite: request.overwrite, ...control });
+  }
+
+  /**
+   * The content a file had in a backup, read into memory (verified against the manifest hash)
+   * without writing anything. Rejects when the backup does not contain the file.
+   */
+  async readFile(source: RestoreSource, path: string): Promise<Uint8Array> {
+    const ctx = this.context();
+    const index = await loadIndex(ctx.store, ctx.backupFolder);
+    const chain = await resolveChain(ctx.store, ctx.backupFolder, index, source);
+    const file = chain.files.get(path.replace(/\/+$/, ""));
+    if (!file) throw new RestoreError(`"${path}" is not in this backup`);
+    return readResolvedFile(ctx.store, ctx.backupFolder, chain, file, ctx.deriveMasterKey);
   }
 
   /** All distinct versions of a file across intact backups, oldest first. */

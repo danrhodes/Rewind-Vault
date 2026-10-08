@@ -12,6 +12,7 @@ import { AdapterVaultStore } from "./storage/VaultStore";
 import { loadIndex } from "./core/BackupIndex";
 import { BackupBrowserModal } from "./ui/BackupBrowserModal";
 import { RestorePreviewModal } from "./ui/RestorePreviewModal";
+import { DiffModal } from "./ui/DiffModal";
 import { VerifyReportModal } from "./ui/VerifyReportModal";
 import { ConfirmModal } from "./ui/ConfirmModal";
 import { createProgressUi } from "./ui/progressHost";
@@ -88,6 +89,19 @@ export default class RewindVaultPlugin extends Plugin {
               actions: restoreActions,
               snapshotEnabled: () => services.getProfile().safety.preRestoreSnapshot,
               confirm,
+            }).open(),
+          compare: (id, createdAt) =>
+            new DiffModal(this.app, id, createdAt, {
+              compare: (backupId) =>
+                services.restore.preview({
+                  source: { id: backupId },
+                  scope: { kind: "all" },
+                  destination: { kind: "vault" },
+                  deleteExtraneous: true,
+                }),
+              readBackupFile: (backupId, path) => services.restore.readFile({ id: backupId }, path),
+              readLiveFile: (path) => services.store.readBinary(path),
+              notifier: services.notifier,
             }).open(),
           confirm,
           notifier: services.notifier,

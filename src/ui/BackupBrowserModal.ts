@@ -17,6 +17,8 @@ export interface BrowserHost {
   verify(backupId: string): Promise<void>;
   /** Open the restore dialog for this backup. */
   restore(backupId: string, createdAt: number): void;
+  /** Open the comparison with the live vault for this backup. */
+  compare(backupId: string, createdAt: number): void;
   confirm(
     title: string,
     message: string,
@@ -105,6 +107,7 @@ export class BackupBrowserModal extends Modal {
       button.addEventListener("click", () => void onClick());
     };
     add("Restore", () => this.restoreRow(row));
+    add("Compare", () => this.compareRow(row));
     add("Verify", () => this.host.verify(row.id));
     add(row.pinned ? "Unpin" : "Pin", () => this.togglePin(row));
     add("Delete", () => this.remove(row), true);
@@ -113,6 +116,11 @@ export class BackupBrowserModal extends Modal {
   private restoreRow(row: BackupRow): void {
     const entry = this.index.backups.find((b) => b.id === row.id);
     if (entry) this.host.restore(entry.id, entry.createdAt);
+  }
+
+  private compareRow(row: BackupRow): void {
+    const entry = this.index.backups.find((b) => b.id === row.id);
+    if (entry) this.host.compare(entry.id, entry.createdAt);
   }
 
   private async togglePin(row: BackupRow): Promise<void> {
