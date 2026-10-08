@@ -6,9 +6,8 @@ Rewind Vault keeps dated backups of your notes inside your vault, checks that th
 
 > **Status: early pre-release (0.0.1). Please read before installing.**
 >
-> - The backup, restore, verification and retention engines are complete and heavily tested (almost a thousand automated tests), but **the screens have not yet been run in a real copy of Obsidian**. Treat this as a test build: keep your own copy of anything you cannot lose.
-> - **Backups are manual for now.** The commands and ribbon icon work. The automatic triggers (on startup, on a timer, after edits, when the app comes back to the foreground, when it closes) exist and are tested, but are **not yet connected to the plugin**, so their settings do nothing yet.
-> - It is not in the community plugin list yet.
+> - The engines (backup, restore, verification, retention) and the screens are written and covered by more than 1,300 automated tests, but **the screens and triggers have not yet been run in a real copy of Obsidian or on a phone**. The list of checks still to do is in [TRACKER.md](TRACKER.md) (the Manual Test Queue). Treat this as a test build: keep your own copy of anything you cannot lose.
+> - It is not in the community plugin list yet. A BRAT beta is planned once the manual tests pass.
 
 ## What it does
 
@@ -18,7 +17,11 @@ Rewind Vault keeps dated backups of your notes inside your vault, checks that th
 - **A damaged backup is never trusted.** If a check fails, the backup is marked corrupt, kept out of retention counts, and the next backup is a full one.
 - **Retention.** Keep the newest N backups, keep backups from the last N days, keep daily/weekly/monthly ones, cap the folder size, and pin milestones. The newest good backup is never deleted, and neither is anything a kept differential backup depends on.
 - **Encryption (optional).** AES-256-GCM with a passphrase. See [Encryption](#encryption).
-- **Mobile friendly.** Everything goes through Obsidian's own file API, works in small chunks, and never needs a desktop-only feature.
+- **Automatic backups.** On startup, when the app returns to the foreground, on a timer or at set times, after a number of edits or words typed, when you stop typing, and (desktop) on close. Conditions such as minimum battery, free space and "nothing changed" can hold a backup back.
+- **Safety extras.** A mass-change guard pauses automatic backups if a bad sync or plugin changes many files at once (you set how many), so your last good backup is not pushed out. Snapshots are taken before bulk deletes and plugin updates. Sync-conflict copies are flagged.
+- **Time machine and recovery.** See every saved version of the current note, compare and restore one; bring back deleted files; browse the whole vault as it was at any backup (read-only); named milestones that are never pruned.
+- **Repair.** Optional recovery data (parity files next to each ZIP) lets a damaged backup part be rebuilt.
+- **Mobile friendly.** Everything goes through Obsidian's own file API, works in small chunks, never needs a desktop-only feature, and has a low-memory mode.
 
 ## Install
 
@@ -40,13 +43,17 @@ Open the command palette and type "Rewind Vault":
 | Command | What it does |
 |---|---|
 | Back up now | Backs up using your chosen automatic style (differential by default). The ribbon icon does the same. |
-| Back up now (full) | A complete backup. |
-| Back up now (differential) | Only what changed since the last backup. |
+| Back up now (full) / (differential) | A complete backup, or only what changed since the last one. |
 | Restore from a backup… | Opens the backup list; press **Restore** on a backup. |
-| Browse backups | The backup list: search, restore, verify, pin, delete. |
+| Browse backups | The backup list: search, compare, restore, verify, pin, repair, delete. |
 | Verify the latest backup | Checks every file's SHA-256 against the backup's record. |
+| Time machine for the current note | Every saved version of the open note: show changes, restore a copy, or replace the note. |
+| Recover deleted files | Files you deleted since they were last backed up. |
+| Vault time travel (read-only) | Look at the vault as it was at any backup, search it and read notes. Nothing is written. |
+| Create a named milestone | A full backup with a name, kept until you delete it. |
+| Copy / show / import settings | Move settings between devices as a link or QR code. |
 
-With **Show legacy commands** turned on you also get: non-destructive backup, resume an interrupted backup, deep verification (follows the whole chain), and a restore rehearsal.
+With **Show legacy commands** turned on you also get: non-destructive backup, resume an interrupted backup, deep verification (follows the whole chain), a restore rehearsal, reset backup state, and updating the status note.
 
 **Restoring.** Press Restore on a backup. You see the files that would be added and the files that differ from what you have now, each with a checkbox. By default everything goes to `restore/<backup name>/` and your notes stay as they are. Choose "My vault" to restore in place: files that would replace your current ones start unticked, and ticking one is your consent to replace it. Before anything is written, a snapshot of the current vault is taken so the restore can be undone.
 
@@ -75,7 +82,7 @@ Settings > Rewind Vault has a section for each group. Desktop and mobile keep **
 | Section | What you can set |
 |---|---|
 | Basic | Backup on startup and delay, automatic style (off, full, differential, non-destructive), hidden files, legacy commands |
-| Destination | Backup folder, restore folder |
+| Destination | Inside the vault or an external copy folder (desktop), backup folder, restore folder |
 | ZIP | Files and size per ZIP part, splitting large output, compression level |
 | Triggers | Startup, resume, timer, daily times, after N edits, idle, create/delete/rename, on close |
 | Conditions | Minimum battery, skip when nothing changed, minimum free space, Wi-Fi only |
@@ -85,9 +92,9 @@ Settings > Rewind Vault has a section for each group. Desktop and mobile keep **
 | Verification | Check after each backup (off, L1, L2, L3), deep check schedule, what to do on failure |
 | Safety | Snapshot before restoring, lock timeout, and the settings for the features below |
 | Notifications | Silent, errors only, or verbose; status bar; log size |
-| Misc | Low-memory mode, chunk size |
+| Misc | Settings passphrase, low-memory mode, keep screen on, chunk size |
 
-**Settings that are shown but do nothing yet:** all of the Triggers and Conditions (see the status note above), the mass-change guard, snapshots before risky changes, daily-note failure alerts, the external-copy location, the status bar, and low-memory mode. (Chunk size is used, but only for encrypted backups.)
+Every setting is in the settings screen. If you turn on **Keep a backup status note**, a note with Dataview-readable properties shows the health of your backups.
 
 ### About retention and differential backups
 
@@ -100,7 +107,7 @@ Turn on **Encrypt backups** and every file inside each ZIP is encrypted with AES
 - **If you lose the passphrase, the backups cannot be recovered.** There is no reset and no back door.
 - **File names are not encrypted.** The ZIP still lists the names of your notes (the contents are protected). Do not rely on this for hiding what files exist.
 - The backup's record is signed, so tampering is detected, and a wrong passphrase is reported as such rather than as "corrupt".
-- **Current limitation:** the passphrase prompt is not built yet, so encryption only works if you save the passphrase in the settings. That is stored in plain text in the plugin's `data.json`, readable by anyone who can read your vault. Treat encryption as experimental until the prompt exists.
+- You can either store the passphrase in the settings or be asked for it each time (prompt on demand). A stored passphrase sits in plain text in the plugin's `data.json`, readable by anyone who can read your vault; prompting is safer.
 
 ### Decrypting without the plugin
 
@@ -123,10 +130,12 @@ Unencrypted backups need none of this: they are ordinary ZIP files.
 
 Rewind Vault runs on iOS and Android, with these limits:
 
-- **There is no background backup.** Phones suspend Obsidian when it is not on screen. Backups can only happen while the app is open (on startup, when you return to it, or on a timer while it is in the foreground) and only once the triggers are connected.
-- Large vaults are processed in small pieces to stay inside memory limits, and mobile defaults use smaller ZIP parts. Very large vaults may still be slow on old phones.
+- **There is no background backup.** Phones suspend Obsidian when it is not on screen. Backups can only happen while the app is open: on startup, when you return to it, or on a timer while it is in the foreground. If a backup is cut off, the next startup or return to the app carries on from the last finished part (setting: Continue an interrupted backup).
+- **Memory.** Large vaults are processed in small pieces. Mobile defaults use 50 MB ZIP parts and 256 KB chunks (about 100 MB peak). **Low-memory mode** drops that to 16 MB parts, 64 KB chunks and no compression (about 32 MB). Details in [docs/memory-budget.md](docs/memory-budget.md).
+- **Screen on during a backup.** Where the device supports it, the screen is kept on while a backup runs, so the phone does not suspend the app half way (setting: Keep the screen on during a backup).
+- **Battery.** The default mobile profile skips automatic backups below 20 % battery, and has an optional low-battery flush that saves once more just before the battery runs out.
 - Free-space checks use the browser's storage estimate, which is a hint rather than exact. If it cannot be read, the check is skipped instead of blocking a backup.
-- Desktop-only options (external copy, backup on close, the status bar) are hidden on mobile.
+- Desktop-only options (external copy, backup on close, the status bar) are hidden on mobile and forced off even if a synced settings file turns them on.
 
 ## Safety design
 
@@ -138,11 +147,11 @@ Rewind Vault runs on iOS and Android, with these limits:
 
 ## Known limitations
 
-- Triggers, the status bar and several settings are not connected yet (see the status note).
+- Not yet tested in a real Obsidian or on a phone (see the status note).
 - A file edited without its size or modified time changing is not noticed by differential backups (they compare size and time first, for speed). A full backup always catches it.
 - Encrypted backups keep file names readable.
-- No cloud destinations. The backup is a folder in your vault (an external-copy option for desktop is planned).
-- The verification report is currently shown as notices, not a detailed screen.
+- No cloud destinations. The backup is a folder in your vault, optionally copied to another folder on desktop.
+- Content-addressed de-duplication is not built; it would break the "every backup is a standalone ZIP" guarantee (design note in TRACKER.md).
 
 ## Development
 
