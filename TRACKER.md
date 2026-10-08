@@ -7,8 +7,8 @@ Priority: P1 now · P2 schedule · P3 delegate/later · P4 defer.
 ## Status
 - Current phase: 8
 - Last session: 2026-10-08
-- Next task: T-111 (T-005 awaiting MT-1)
-- Tasks done: 82 / 118
+- Next task: T-120 (T-005 awaiting MT-1)
+- Tasks done: 83 / 118
 
 ---
 
@@ -111,7 +111,7 @@ Priority: P1 now · P2 schedule · P3 delegate/later · P4 defer.
 - [x] T-108 [P2] `ui/DiffModal.ts` backup vs current | T-063 | —
 - [x] T-109 [P2] `settings/transfer.ts` export/import via URI + clipboard | T-021 | round-trip test
 - [x] T-110 [P2] Settings passphrase protection | T-109,T-031 | —
-- [ ] T-111 [P2] Reset backup state command | T-046 | forces next full
+- [x] T-111 [P2] Reset backup state command | T-046 | forces next full
 - [x] T-112 [P1] Wire triggers (startup, resume, interval, edits, close), RunGuard + conditions, status bar and mass-change/notify hooks into main/services | T-086,T-101,T-104 | all triggers start on load and stop on unload; settings changes restart them
 
 ## Phase 9 — Safety extras
@@ -178,6 +178,7 @@ MT-10 | Obsidian desktop + mobile | Automatic triggers: with startup + interval 
 MT-11 | Obsidian desktop + mobile | Browse backups > Compare: summary counts match what you changed since that backup; Show changes on a text note shows +/- lines in green/red with folded unchanged lines; deleted and new files show the right side only; a png says it is not a text file; the dialog stays responsive on a big vault | T-108 | pending
 MT-12 | Obsidian desktop + mobile | Copy settings as a link on one device, Import settings from the clipboard on another (clipboard read permission on iOS/Android): confirm dialog appears, settings change, the other device's stored passphrase is untouched, triggers pick up the new interval without restart | T-109 | pending
 MT-13 | Obsidian desktop + mobile | Copy settings as a passphrase-protected link, import on another device: passphrase dialog appears (twice on copy, once on import), wrong passphrase gives a notice and changes nothing. Also: with encryption on and no stored passphrase, a backup shows the Backup passphrase dialog and Cancel stops the run cleanly | T-110 | pending
+MT-14 | Obsidian desktop + mobile | Run Reset backup state: confirm dialog, then Back up now makes a full backup even with no edits, and old backups are all still listed | T-111 | pending
 
 ## Ideas Parking Lot
 _Out-of-plan ideas. Do not build until promoted to a task._
@@ -269,3 +270,4 @@ _Format: `YYYY-MM-DD | tasks touched | tests added | decisions | blockers | next
 - 2026-10-08 | T-108 done | tests/ui/diffModel.test.ts (13: line diff change/add/remove, equal and empty text, too-large guard, context folding, comparison rows sorted, summaries, row text, text-path detection, invalid UTF-8, added/removed counts with the backup as old side, missing side, binary unavailable) and tests/core/RestoreEngine.readFile.test.ts (3: content per backup with nothing written, file stored in the base, missing file rejected) | New RestoreEngine.readFile reads one verified file into memory. New helpers/lineDiff.ts (LCS with common prefix/suffix trimmed, null above 4M cells). The comparison reuses RestoreEngine.preview with vault destination + deleteExtraneous, so no new planning code. "-" = only in the backup, "+" = only in the vault now. Opened from a Compare button in the backup browser. | — | T-109
 - 2026-10-08 | T-109 done | tests/settings/transfer.test.ts (7: round trip, no passphrase in the link, source not mutated, link/bare/JSON accepted, garbage/format/version/size rejected, hostile values sanitised, in-place apply keeps local passphrase) and tests/commands/settingsActions.test.ts (5: copy, import with confirm + save + onChanged, decline, bad clipboard, two commands) | Link = `rewind-vault://settings/<base64url JSON envelope>` holding BOTH profiles; stored passphrases are never exported and never overwritten on import. Import goes through migrateSettings so bad values are clamped/dropped. QR (T-138) can reuse this text. Two palette commands (Copy settings as a link, Import settings from the clipboard) via a new `extra` argument on buildCommands; no new setting, so no settings-tab field. | — | T-110
 - 2026-10-08 | T-110 done | tests/settings/protect.test.ts (6: round trip, fresh salt, wrong passphrase reported, altered data detected, short passphrase / non-link / damaged link rejected, forged iteration counts refused) and 3 more in tests/commands/settingsActions.test.ts (protected copy + import, wrong passphrase imports nothing, cancelled prompt) | Interpreted "settings passphrase protection" as an optional passphrase on the exported settings link (see Decisions). settings/protect.ts: AES-256-GCM, PBKDF2-SHA256 at 600k+, random salt, link `rewind-vault://settings-protected/...`; import accepts both kinds and asks for the passphrase when needed. New ui/PassphraseModal.ts (also supplies the missing services.promptPassphrase, so prompt-on-demand encryption now works in the plugin). Third palette command: Copy settings as a passphrase-protected link. | Needs owner confirmation that this is the intended meaning | T-111
+- 2026-10-08 | T-111 done | tests/core/BackupAdmin.reset.test.ts (4: state cleared and backups kept, next diff becomes a full even with no changes and later diffs resume, works with no backups, refused under the lock) and tests/commands/maintenanceActions.test.ts (5: reset after confirm, declined, failure reported, refused while busy, palette command) | BackupAdmin.resetState writes an empty state (updatedAt 0) under the backup lock; the planner already forces a full on that. Command "Reset backup state (next backup will be full)" asks for confirmation and shares the BusyFlag. | — | T-120

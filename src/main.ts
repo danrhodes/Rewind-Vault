@@ -1,5 +1,6 @@
 import { Notice, Platform, Plugin } from "obsidian";
 import { Actions, BusyFlag } from "./commands/actions";
+import { MaintenanceActions, buildMaintenanceCommands } from "./commands/maintenanceActions";
 import { SettingsActions, buildSettingsCommands } from "./commands/settingsActions";
 import { RestoreActions } from "./commands/restoreActions";
 import { buildCommands } from "./commands/definitions";
@@ -99,6 +100,12 @@ export default class RewindVaultPlugin extends Plugin {
       onChanged: () => automation.settingsChanged(),
       notifier: services.notifier,
     });
+    const maintenance = new MaintenanceActions({
+      admin: () => services.admin(),
+      confirm,
+      notifier: services.notifier,
+      busy,
+    });
     const commands = buildCommands(
       actions,
       {
@@ -132,7 +139,7 @@ export default class RewindVaultPlugin extends Plugin {
             notifier: services.notifier,
           }).open(),
       },
-      [...buildSettingsCommands(settingsActions)],
+      [...buildSettingsCommands(settingsActions), ...buildMaintenanceCommands(maintenance)],
     );
     registerCommands(this, commands, services.getProfile, () => actions.backupNow());
 

@@ -1,3 +1,4 @@
+import { SCHEMA_VERSION } from "../constants";
 import { BackupAdminError } from "../helpers/errors";
 import type { ILogger } from "../helpers/logger";
 import type { IClock } from "../helpers/time";
@@ -12,6 +13,8 @@ import {
   saveIndex,
   updateBackup,
 } from "./BackupIndex";
+import { saveState } from "./BackupState";
+import { emptyState } from "./Differ";
 import { LockManager, type LockOptions } from "./LockManager";
 
 export interface AdminDeps {
@@ -83,6 +86,18 @@ export class BackupAdmin {
     } finally {
       await lock.release();
     }
+  }
+
+  /**
+   * Forget what the last backup saw (state.json), so the next backup starts from a full one
+   * and the "nothing changed" check cannot skip it. No backup is touched or deleted.
+   */
+  resetState(): Promise<void> {
+    return this.withLock(async () => {
+      const { store, logger, backupFolder } = this.deps;
+      await saveState(store, backupFolder, emptyState(0, SCHEMA_VERSION.state));
+      logger.info("Backup state reset: the next backup will be a full backup");
+    });
   }
 
   /** Pin (exempt from retention) or unpin. A label names the milestone. */
