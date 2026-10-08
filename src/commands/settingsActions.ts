@@ -1,12 +1,17 @@
 import { WrongPassphraseError } from "../helpers/errors";
+import { QR_PREFIX, buildQrPayload, parseQrPayload } from "../settings/qrTransfer";
 import { isProtectedLink, protectLink, unprotectLink } from "../settings/protect";
 import { applyImportedSettings, exportSettings, importSettings } from "../settings/transfer";
-import type { Settings } from "../types";
+import type { PlatformKind, Settings } from "../types";
 import type { Notifier } from "../ui/notify";
 import type { CommandDef } from "./definitions";
 
 export interface SettingsActionDeps {
   settings: Settings;
+  /** The platform this device runs, whose profile a QR code carries and replaces. */
+  platform: PlatformKind;
+  /** Show text as a QR code. */
+  showQr(text: string): void;
   clipboard: { read(): Promise<string>; write(text: string): Promise<void> };
   confirm(
     title: string,
@@ -80,25 +85,40 @@ export class SettingsActions {
     }
   }
 
+  /** Show this device's settings as a QR code to scan with another device's camera. */
+  showQrCode(): void {
+    const { notifier } = this.deps;
+    const payload = buildQrPayload(this.deps.settings, this.deps.platform);
+    if (!payload.ok) {
+      notifier.error(payload.error);
+      return;
+    }
+    this.deps.showQr(payload.text);
+  }
+
   async importFromClipboard(): Promise<void> {
     const { notifier } = this.deps;
     try {
       const text = await this.readLink();
       if (text === null) return;
-      const result = importSettings(text);
+      const fromQr = text.trim().startsWith(QR_PREFIX);
+      const result = fromQr ? parseQrPayload(text, this.deps.platform) : importSettings(text);
       if (!result.ok) {
         notifier.error(result.error);
         return;
       }
       const ok = await this.deps.confirm(
         "Import settings",
-        "Replace ALL desktop and mobile settings with the ones on the clipboard? " +
-          "Your stored passphrase is kept. This cannot be undone.",
+        fromQr
+          ? `Replace this device's ${this.deps.platform} settings with the ones from the QR code? ` +
+              "Your stored passphrase is kept. This cannot be undone."
+          : "Replace ALL desktop and mobile settings with the ones on the clipboard? " +
+              "Your stored passphrase is kept. This cannot be undone.",
         "Import",
         true,
       );
       if (!ok) return;
-      applyImportedSettings(this.deps.settings, result.settings);
+      applyImportedSettings(this.deps.settings, result.settings, result.scope);
       await this.deps.save();
       this.deps.onChanged();
       notifier.success("Settings imported.");
@@ -121,6 +141,12 @@ export function buildSettingsCommands(actions: SettingsActions): CommandDef[] {
       name: "Copy settings as a passphrase-protected link",
       icon: "lock",
       run: () => actions.copyProtectedLink(),
+    },
+    {
+      id: "show-settings-qr",
+      name: "Show settings as a QR code",
+      icon: "qr-code",
+      run: () => actions.showQrCode(),
     },
     {
       id: "import-settings",

@@ -10,6 +10,7 @@ function setup(
   answer = true,
   passphrase: string | null = null,
   protect = false,
+  platform: "desktop" | "mobile" = "desktop",
 ) {
   const settings = createDefaultSettings();
   settings.desktop.encryption.passphrase = "local";
@@ -17,8 +18,11 @@ function setup(
   const log = { saved: 0, changed: 0, written: "", asked: 0, passphraseAsked: 0 };
   const profile = createDefaultProfile("desktop");
   profile.notifications.level = "verbose";
+  const shown: string[] = [];
   const actions = new SettingsActions({
     settings,
+    platform,
+    showQr: (text) => shown.push(text),
     clipboard: {
       read: async () => clipboardText,
       write: async (t) => {
@@ -45,7 +49,7 @@ function setup(
       () => profile,
     ),
   });
-  return { actions, settings, notices, log };
+  return { actions, settings, notices, log, shown };
 }
 
 describe("SettingsActions", () => {
@@ -131,11 +135,43 @@ describe("SettingsActions", () => {
     expect(t.log.written).toBe("");
   });
 
-  it("offers three palette commands", () => {
+  it("shows a QR code for this device and imports it on another, replacing only that profile", async () => {
+    const sender = setup("", true, null, false, "desktop");
+    sender.settings.desktop.retention.keepLast = 77;
+    sender.settings.desktop.encryption.passphrase = "never-sent";
+    sender.actions.showQrCode();
+    expect(sender.shown).toHaveLength(1);
+    expect(sender.shown[0]?.startsWith("RVQ1:")).toBe(true);
+
+    const phone = setup(sender.shown[0] ?? "", true, null, false, "mobile");
+    phone.settings.desktop.retention.keepLast = 3; // must stay untouched
+    phone.settings.mobile.encryption.passphrase = "phone-secret";
+    await phone.actions.importFromClipboard();
+    expect(phone.log.asked).toBe(1);
+    expect(phone.settings.mobile.retention.keepLast).toBe(77);
+    expect(phone.settings.desktop.retention.keepLast).toBe(3);
+    expect(phone.settings.mobile.encryption.passphrase).toBe("phone-secret");
+    expect(phone.log).toMatchObject({ saved: 1, changed: 1 });
+  });
+
+  it("tells the user when the settings are too different to fit in a QR code", () => {
+    const t = setup();
+    t.settings.desktop.exclusions.globs = Array.from(
+      { length: 80 },
+      (_, i) =>
+        `${((i + 7) * 2654435761).toString(36)}${((i + 3) * 40503 * 97).toString(36)}-${(i * 7919 + 13).toString(36)}/`,
+    );
+    t.actions.showQrCode();
+    expect(t.shown).toEqual([]);
+    expect(t.notices.join()).toContain("settings link");
+  });
+
+  it("offers four palette commands", () => {
     const commands = buildSettingsCommands(setup().actions);
     expect(commands.map((c) => c.id)).toEqual([
       "copy-settings",
       "copy-settings-protected",
+      "show-settings-qr",
       "import-settings",
     ]);
   });

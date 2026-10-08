@@ -1,5 +1,5 @@
 import { fromBase64, toBase64 } from "../helpers/bytes";
-import type { Settings } from "../types";
+import type { PlatformKind, Settings } from "../types";
 import { migrateSettings } from "./migrate";
 
 export const TRANSFER_FORMAT = "rewind-vault-settings";
@@ -14,7 +14,10 @@ interface Envelope {
   settings: unknown;
 }
 
-export type ImportResult = { ok: true; settings: Settings } | { ok: false; error: string };
+/** `scope` says which profile(s) the import replaces: both, or only one platform's. */
+export type ImportScope = "both" | PlatformKind;
+export type ImportResult =
+  { ok: true; settings: Settings; scope?: ImportScope } | { ok: false; error: string };
 
 const toBase64Url = (bytes: Uint8Array): string =>
   toBase64(bytes).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
@@ -73,14 +76,18 @@ export function importSettings(text: string): ImportResult {
  * Replace `target`'s settings with imported ones, in place (the settings tab and services hold
  * the same object). Local secrets are kept: an import never changes the stored passphrase.
  */
-export function applyImportedSettings(target: Settings, imported: Settings): void {
+export function applyImportedSettings(
+  target: Settings,
+  imported: Settings,
+  scope: ImportScope = "both",
+): void {
   const keep = {
     desktop: target.desktop.encryption.passphrase,
     mobile: target.mobile.encryption.passphrase,
   };
   target.schemaVersion = imported.schemaVersion;
-  target.desktop = imported.desktop;
-  target.mobile = imported.mobile;
+  if (scope === "both" || scope === "desktop") target.desktop = imported.desktop;
+  if (scope === "both" || scope === "mobile") target.mobile = imported.mobile;
   target.desktop.encryption.passphrase = keep.desktop;
   target.mobile.encryption.passphrase = keep.mobile;
 }

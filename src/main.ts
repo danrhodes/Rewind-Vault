@@ -20,6 +20,7 @@ import { BackupBrowserModal } from "./ui/BackupBrowserModal";
 import { RestorePreviewModal } from "./ui/RestorePreviewModal";
 import { DiffModal } from "./ui/DiffModal";
 import { VerifyReportModal } from "./ui/VerifyReportModal";
+import { QrModal } from "./ui/QrModal";
 import { PassphraseModal } from "./ui/PassphraseModal";
 import { LinkReportModal } from "./ui/LinkReportModal";
 import { LinkChecker } from "./core/LinkReport";
@@ -99,6 +100,8 @@ export default class RewindVaultPlugin extends Plugin {
     );
     const settingsActions = new SettingsActions({
       settings,
+      platform: Platform.isMobile ? "mobile" : "desktop",
+      showQr: (text) => new QrModal(this.app, text, (t) => navigator.clipboard.writeText(t)).open(),
       clipboard: {
         read: () => navigator.clipboard.readText(),
         write: (text) => navigator.clipboard.writeText(text),
