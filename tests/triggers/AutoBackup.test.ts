@@ -23,6 +23,7 @@ function setup(
     conditions?: ConditionResult;
     run?: () => Promise<RunResult>;
     busy?: boolean;
+    hold?: string | null;
   } = {},
 ) {
   const profile = createDefaultProfile("desktop");
@@ -50,6 +51,7 @@ function setup(
         held = false;
       },
     },
+    hold: () => options.hold ?? null,
     status: { progress: () => undefined, finished: (ok) => finished.push(ok) },
   });
   return { run, engineRun, notices, finished, isHeld: () => held };
@@ -98,6 +100,14 @@ describe("createAutoBackup", () => {
     expect(t.notices.join()).toContain("disk full");
     expect(t.finished).toEqual([false]);
     expect(t.isHeld()).toBe(false);
+  });
+
+  it("is held back by the mass-change guard without touching the busy flag", async () => {
+    const t = setup({ hold: "mass change guard: 300 files changed within 60 seconds" });
+    await t.run("interval");
+    expect(t.engineRun).not.toHaveBeenCalled();
+    expect(t.isHeld()).toBe(false);
+    expect(t.finished).toEqual([]);
   });
 
   it("rethrows a LockError for the run guard", async () => {

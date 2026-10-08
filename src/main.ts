@@ -105,6 +105,7 @@ export default class RewindVaultPlugin extends Plugin {
       confirm,
       notifier: services.notifier,
       busy,
+      massChange: automation.massChange,
     });
     const commands = buildCommands(
       actions,

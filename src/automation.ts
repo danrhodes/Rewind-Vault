@@ -1,7 +1,9 @@
 import type { Plugin } from "obsidian";
 import type { BusyFlag } from "./commands/actions";
 import { loadIndex, sortedBackups } from "./core/BackupIndex";
+import { MassChangeGuard } from "./core/MassChangeGuard";
 import { isDeepVerifyDue, runDeepVerify } from "./core/DeepVerify";
+import { isInsideFolder } from "./helpers/glob";
 import { createNetworkProbe } from "./helpers/network";
 import {
   createCloseEvents,
@@ -17,7 +19,17 @@ import { RunGuard } from "./triggers/RunGuard";
 import { TriggerManager } from "./triggers/TriggerManager";
 import { StatusBar, type BackupStatusSink } from "./ui/StatusBar";
 
+/** The mass-change guard as the rest of the plugin sees it. */
+export interface MassChangeControl {
+  isPaused(): boolean;
+  /** One sentence for the user about what tripped it. */
+  summary(): string;
+  /** The changes were intended: automatic backups may run again. */
+  release(): void;
+}
+
 export interface Automation {
+  readonly massChange: MassChangeControl;
   /** Mirrors backup progress into the status bar. Give it to the manual actions too. */
   readonly status: BackupStatusSink;
   /** Start the triggers and status bar. Call once, from onload. */
@@ -52,6 +64,44 @@ export function createAutomation(plugin: Plugin, services: Services, busy: BusyF
     finished: (ok) => (ok ? showIdle() : statusBar.setError()),
   };
 
+  const massGuard = new MassChangeGuard(clock, () => {
+    const safety = getProfile().safety;
+    return {
+      enabled: safety.massChangeGuard,
+      threshold: safety.massChangeThreshold,
+      windowSec: safety.massChangeWindowSec,
+    };
+  });
+  const massChange: MassChangeControl = {
+    isPaused: () => massGuard.isTripped,
+    summary: () => {
+      const trip = massGuard.tripInfo;
+      return trip
+        ? `${trip.files} files changed within ${trip.windowSec} seconds`
+        : "no mass change detected";
+    },
+    release: () => massGuard.release(),
+  };
+  // Our own writes (backups, restores) and the backup folders must not count as vault changes.
+  const onVaultChange = (path: string): void => {
+    const { destination } = getProfile();
+    if (busy.isBusy) return;
+    if (
+      isInsideFolder(path, destination.backupFolder) ||
+      isInsideFolder(path, destination.restoreFolder)
+    ) {
+      return;
+    }
+    if (massGuard.record(path)) {
+      logger.warn(`Mass change detected: ${massChange.summary()}. Automatic backups paused.`);
+      notifier.error(
+        `${massChange.summary()}. Automatic backups are paused so the last good backup is ` +
+          'kept. If the changes are expected, run "Resume automatic backups".',
+      );
+      statusBar.setError();
+    }
+  };
+
   const freeSpace = createStorageEstimateProbe();
   const network = createNetworkProbe();
   const run = createAutoBackup({
@@ -63,14 +113,16 @@ export function createAutomation(plugin: Plugin, services: Services, busy: BusyF
     getProfile,
     busy,
     status,
+    hold: () => (massGuard.isTripped ? `mass change guard: ${massChange.summary()}` : null),
   });
   const guard = new RunGuard({ clock, logger, run });
 
+  const vaultEvents = createVaultEvents(plugin.app);
   const manager = new TriggerManager({
     triggers: { clock, logger, getProfile, run: guard.request },
     platform,
     timers: createTimerHost(plugin),
-    events: createVaultEvents(plugin.app),
+    events: vaultEvents,
     close: createCloseEvents(),
     whenReady: (callback) => plugin.app.workspace.onLayoutReady(callback),
     lastBackupAt,
@@ -85,9 +137,14 @@ export function createAutomation(plugin: Plugin, services: Services, busy: BusyF
     },
   });
 
+  let stopGuardEvents: (() => void)[] = [];
   return {
     status,
+    massChange,
     start(whenReady) {
+      stopGuardEvents = (["modify", "create", "delete", "rename"] as const).map((kind) =>
+        vaultEvents.on(kind, onVaultChange),
+      );
       whenReady(() => {
         showIdle();
         plugin.registerInterval(window.setInterval(() => statusBar.refresh(), 60_000));
@@ -99,6 +156,8 @@ export function createAutomation(plugin: Plugin, services: Services, busy: BusyF
       statusBar.refresh();
     },
     stop() {
+      for (const off of stopGuardEvents) off();
+      stopGuardEvents = [];
       manager.stop();
       statusBar.dispose();
     },

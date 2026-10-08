@@ -14,11 +14,32 @@ export interface MaintenanceDeps {
   notifier: Notifier;
   /** Shared with the backup and restore actions: no maintenance during a run. */
   busy: BusyFlag;
+  massChange: { isPaused(): boolean; summary(): string; release(): void };
 }
 
 /** Housekeeping commands that change backup bookkeeping but never delete backups. */
 export class MaintenanceActions {
   constructor(private readonly deps: MaintenanceDeps) {}
+
+  /** Let automatic backups run again after the mass-change guard paused them. */
+  async resumeAfterMassChange(): Promise<void> {
+    const { notifier, massChange } = this.deps;
+    if (!massChange.isPaused()) {
+      notifier.info("Automatic backups are not paused.");
+      return;
+    }
+    const ok = await this.deps.confirm(
+      "Resume automatic backups",
+      `Backups were paused because ${massChange.summary()}. Resume only if you know why ` +
+        "(a big import, a sync, a planned cleanup). Otherwise check your notes first: a new " +
+        "backup of damaged notes could eventually replace the good ones.",
+      "Resume",
+      true,
+    );
+    if (!ok) return;
+    massChange.release();
+    notifier.success("Automatic backups resumed.");
+  }
 
   async resetState(): Promise<void> {
     const { notifier, busy } = this.deps;
@@ -52,6 +73,12 @@ export function buildMaintenanceCommands(actions: MaintenanceActions): CommandDe
       name: "Reset backup state (next backup will be full)",
       icon: "rotate-ccw",
       run: () => actions.resetState(),
+    },
+    {
+      id: "resume-automatic",
+      name: "Resume automatic backups (after a mass-change pause)",
+      icon: "play",
+      run: () => actions.resumeAfterMassChange(),
     },
   ];
 }

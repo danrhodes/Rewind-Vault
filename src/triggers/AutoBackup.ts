@@ -18,6 +18,8 @@ export interface AutoBackupDeps {
   /** Shared with the manual commands so an automatic run never overlaps a manual one. */
   busy: { tryAcquire(): boolean; release(): void };
   status?: BackupStatusSink;
+  /** A reason to hold automatic backups back (mass-change guard), or null to go ahead. */
+  hold?: () => string | null;
 }
 
 /**
@@ -32,6 +34,11 @@ export function createAutoBackup(deps: AutoBackupDeps): RunRequest {
     const options = runOptionsForStyle(deps.getProfile().basic.autoStyle);
     if (!options) {
       logger.debug(`Automatic backup ("${reason}") ignored: automatic style is off`);
+      return;
+    }
+    const held = deps.hold?.() ?? null;
+    if (held) {
+      logger.info(`Automatic backup ("${reason}") held back: ${held}`);
       return;
     }
     if (!deps.busy.tryAcquire()) {
