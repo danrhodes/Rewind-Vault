@@ -7,8 +7,8 @@ Priority: P1 now · P2 schedule · P3 delegate/later · P4 defer.
 ## Status
 - Current phase: 10
 - Last session: 2026-10-08
-- Next task: T-161 (blocked until the Manual Test Queue is empty; T-005 awaiting MT-1)(T-005 awaiting MT-1)
-- Tasks done: 104 / 110
+- Next task: T-161 (blocked until the Manual Test Queue is empty)(T-005 awaiting MT-1)
+- Tasks done: 105 / 110
 
 ---
 
@@ -17,7 +17,7 @@ Priority: P1 now · P2 schedule · P3 delegate/later · P4 defer.
 - [x] T-002 [P1] `manifest.json` (id `rewind-vault`, name "Rewind Vault", `isDesktopOnly:false`), `versions.json`, `main.ts` stub that loads/unloads | T-001 | builds `main.js`; id has no "obsidian"
 - [x] T-003 [P1] Folder skeleton per PLAN §4 with empty index files | T-001 | structure matches plan
 - [x] T-004 [P1] Mock layer: `MockVaultStore`, `MockClock`, `MockLogger` in `tests/mocks` | T-003 | used by one passing sample test
-- [~] T-005 [P2] CI workflow: typecheck, lint, test, build | T-001 | green on push
+- [x] T-005 [P2] CI workflow: typecheck, lint, test, build | T-001 | green on push
 
 ## Phase 1 — Foundations
 - [x] T-010 [P1] `types.ts`: Settings, Manifest, BackupEntry, FileInfo, VerifyReport, BackupIndex | T-003 | compiles, no `any`
@@ -169,7 +169,7 @@ Priority: P1 now · P2 schedule · P3 delegate/later · P4 defer.
 
 ## Manual Test Queue
 _Items needing a real Obsidian runtime or device. Format: `MT-n | device | what to test | linked task | result`._
-MT-1 | GitHub | Push branch, confirm the CI workflow (typecheck, lint, test, build) runs green | T-005 | pending
+MT-1 | GitHub | Push branch, confirm the CI workflow (typecheck, lint, test, build) runs green | T-005 | pass (owner reported green, 2026-10-08)
 MT-2 | Obsidian desktop + mobile | Copy manifest.json + main.js into a test vault, enable the plugin: it loads without error, and backup/log.txt receives "Rewind Vault loaded" (checks AdapterVaultStore against the real DataAdapter) | T-024 | pending
 MT-3 | Obsidian desktop | Enable backup on close with a small vault, quit Obsidian: does a new backup folder appear? Either way no half-made folder and no stale lock should remain | T-085 | pending
 MT-4 | Obsidian desktop + mobile | Start a backup of a larger vault with the progress dialog: bar and text update, Cancel stops the run and leaves no partial backup, closing the dialog with Esc hides it without cancelling | T-102 | pending
@@ -319,3 +319,4 @@ _Format: `YYYY-MM-DD | tasks touched | tests added | decisions | blockers | next
 - 2026-10-08 | T-160 done | none (documentation) | README rewritten where it was stale: status note, automatic triggers and screens now exist, new commands table (time machine, time travel, milestones, recover, settings transfer), mobile section (resume, memory, wake lock, battery), encryption passphrase prompt exists, settings table, limitations. Decrypt recipe, sync warning and backup layout kept. | none | T-161 and later are manual passes and cannot be done without a real Obsidian; T-005 needs MT-1
 - 2026-10-08 | tracker count fixed | none | Total tasks corrected from 118 to 110 (104 done, T-005 in progress, T-139 blocked, T-161 to T-164 need real devices). | none | T-161 after manual tests
 - 2026-10-08 | T-139 decided | none | Owner chose not to build dedup (option C). Recorded in Decisions; task stays [!] so it is never picked up. | none | T-161 after manual tests
+- 2026-10-08 | T-005 done | none | Owner reported the GitHub CI run green (MT-1 passed). Clean-clone run of the same four steps also passed locally. | none | T-161 after the remaining manual tests (MT-2 to MT-33)
