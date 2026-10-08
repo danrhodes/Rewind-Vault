@@ -185,6 +185,22 @@ describe("Notifier.backupResult conflicts", () => {
   });
 });
 
+describe("Notifier.backupResult external copy", () => {
+  it("reports a failed copy as an error and a good one as information", () => {
+    const bad = setup("errors");
+    bad.notifier.backupResult(result({ externalCopy: { ok: false, message: "drive removed" } }));
+    expect(bad.shown.map((s) => s.message).join()).toContain("external copy failed: drive removed");
+    const good = setup("verbose");
+    good.notifier.backupResult(
+      result({ externalCopy: { ok: true, message: "Copied 3 file(s)." } }),
+    );
+    expect(good.shown.map((s) => s.message).join()).toContain("External copy done");
+    const quiet = setup("errors");
+    quiet.notifier.backupResult(result({ externalCopy: { ok: true, message: "Copied." } }));
+    expect(quiet.shown.map((s) => s.message).join()).not.toContain("External copy");
+  });
+});
+
 describe("error sink", () => {
   function withSink(level: NotificationLevel, sinkThrows = false) {
     const profile = createDefaultProfile("desktop");

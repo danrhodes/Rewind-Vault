@@ -45,6 +45,8 @@ export interface CompletedResult {
   verification?: VerifyReport;
   /** Sync-conflict copies seen in the vault during this run; absent when there are none. */
   conflictFiles?: ConflictFile[];
+  /** Present only when the external copy ran (destination "external", desktop). */
+  externalCopy?: { ok: boolean; message: string };
   /** Present only when retention removed (or failed to remove) old backups after this run. */
   retention?: RetentionResult;
 }

@@ -83,6 +83,14 @@ export class Notifier {
     if (result.skippedFiles.length > 0) {
       this.warning(`${result.skippedFiles.length} file(s) were left out. See the log for details.`);
     }
+    if (result.externalCopy) {
+      if (result.externalCopy.ok) this.info(`External copy done. ${result.externalCopy.message}`);
+      else {
+        this.error(
+          `The backup was made, but the external copy failed: ${result.externalCopy.message}`,
+        );
+      }
+    }
     const conflicts = result.conflictFiles ?? [];
     if (conflicts.length > 0) {
       const first = conflicts[0]?.path ?? "";

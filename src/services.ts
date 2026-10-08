@@ -1,6 +1,8 @@
 import { FILE_NAMES } from "./constants";
 import { BackupAdmin } from "./core/BackupAdmin";
 import { BackupEngine } from "./core/BackupEngine";
+import { BackupMirror } from "./core/BackupMirror";
+import { ExternalCopy, loadNodeFs, type ExternalFs } from "./storage/ExternalCopy";
 import { RestoreEngine } from "./core/RestoreEngine";
 import { verifyAndRecord, type VerifyRunnerDeps } from "./core/VerifyRunner";
 import type { VerifyOptions } from "./core/VerifyEngine";
@@ -30,7 +32,7 @@ export interface Services {
   readonly passphrase: PassphraseService;
   /** Raw settings for both profiles. Edited by the settings tab. */
   readonly settings: Settings;
-  readonly backup: BackupEngine;
+  readonly backup: Pick<BackupEngine, "run" | "resume" | "findResumable">;
   readonly restore: RestoreEngine;
   /** Manual pin/delete of existing backups. A fresh instance, so it always sees current settings. */
   admin(): BackupAdmin;
@@ -57,6 +59,8 @@ export interface ServiceDeps {
   pluginVersion?: string;
   /** Shows a transient message; main passes `new Notice`. Defaults to doing nothing. */
   showNotice?: ShowNotice;
+  /** Node fs for the external copy. Defaults to the runtime's (desktop); null disables it. */
+  externalFs?: ExternalFs | null;
   /** Writes failure alerts into a note. Defaults to none (alerts are skipped). */
   appendText?: ITextAppender;
   /** Free-space probe for the pre-run check. Defaults to the browser storage estimate. */
@@ -100,7 +104,7 @@ export function createServices(deps: ServiceDeps): Services {
     ? new FailureAlert(deps.appendText, clock, logger, () => getProfile().notifications)
     : null;
 
-  const backup = new BackupEngine({
+  const engine = new BackupEngine({
     store,
     logger,
     clock,
@@ -109,6 +113,17 @@ export function createServices(deps: ServiceDeps): Services {
     pluginVersion: deps.pluginVersion ?? "0.0.0",
     deriveMasterKey,
     freeSpace: deps.freeSpace ?? createStorageEstimateProbe(),
+  });
+
+  // Desktop only: Node's fs, found at run time. Null on mobile, so no copy is ever attempted.
+  const nodeFs = deps.externalFs === undefined ? loadNodeFs() : deps.externalFs;
+  const backup = new BackupMirror({
+    engine,
+    copier: platform.isDesktop && nodeFs ? new ExternalCopy(store, nodeFs, logger) : null,
+    platform,
+    logger,
+    getProfile,
+    store,
   });
 
   const restore = new RestoreEngine({
