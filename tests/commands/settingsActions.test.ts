@@ -1,14 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { SettingsActions, buildSettingsCommands } from "../../src/commands/settingsActions";
 import { createDefaultProfile, createDefaultSettings } from "../../src/settings/defaults";
+import { isProtectedLink, protectLink } from "../../src/settings/protect";
 import { exportSettings } from "../../src/settings/transfer";
 import { Notifier } from "../../src/ui/notify";
 
-function setup(clipboardText = "", answer = true) {
+function setup(clipboardText = "", answer = true, passphrase: string | null = null) {
   const settings = createDefaultSettings();
   settings.desktop.encryption.passphrase = "local";
   const notices: string[] = [];
-  const log = { saved: 0, changed: 0, written: "", asked: 0 };
+  const log = { saved: 0, changed: 0, written: "", asked: 0, passphraseAsked: 0 };
   const profile = createDefaultProfile("desktop");
   profile.notifications.level = "verbose";
   const actions = new SettingsActions({
@@ -22,6 +23,10 @@ function setup(clipboardText = "", answer = true) {
     confirm: async () => {
       log.asked++;
       return answer;
+    },
+    askPassphrase: async () => {
+      log.passphraseAsked++;
+      return passphrase;
     },
     save: async () => {
       log.saved++;
@@ -74,8 +79,45 @@ describe("SettingsActions", () => {
     expect(t.notices.join()).toContain("not a Rewind Vault settings link");
   });
 
-  it("offers two palette commands", () => {
+  it("copies a protected link and imports it with the same passphrase", async () => {
+    const source = createDefaultSettings();
+    source.desktop.retention.keepLast = 55;
+    const copier = setup("", true, "long enough pass");
+    Object.assign(copier.settings, source);
+    await copier.actions.copyProtectedLink();
+    expect(isProtectedLink(copier.log.written)).toBe(true);
+
+    const receiver = setup(copier.log.written, true, "long enough pass");
+    await receiver.actions.importFromClipboard();
+    expect(receiver.log.passphraseAsked).toBe(1);
+    expect(receiver.settings.desktop.retention.keepLast).toBe(55);
+  });
+
+  it("does not import a protected link with the wrong passphrase", async () => {
+    const copier = setup("", true, "long enough pass");
+    await copier.actions.copyProtectedLink();
+    const receiver = setup(copier.log.written, true, "another passphrase");
+    await receiver.actions.importFromClipboard();
+    expect(receiver.log).toMatchObject({ asked: 0, saved: 0 });
+    expect(receiver.notices.join()).toContain("Wrong passphrase");
+  });
+
+  it("does nothing when the passphrase prompt is cancelled", async () => {
+    const copier = setup("", true, null);
+    await copier.actions.copyProtectedLink();
+    expect(copier.log.written).toBe("");
+    const protectedText = await protectLink("x", "long enough pass");
+    const receiver = setup(protectedText, true, null);
+    await receiver.actions.importFromClipboard();
+    expect(receiver.log).toMatchObject({ asked: 0, saved: 0 });
+  });
+
+  it("offers three palette commands", () => {
     const commands = buildSettingsCommands(setup().actions);
-    expect(commands.map((c) => c.id)).toEqual(["copy-settings", "import-settings"]);
+    expect(commands.map((c) => c.id)).toEqual([
+      "copy-settings",
+      "copy-settings-protected",
+      "import-settings",
+    ]);
   });
 });

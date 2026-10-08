@@ -15,6 +15,7 @@ import { BackupBrowserModal } from "./ui/BackupBrowserModal";
 import { RestorePreviewModal } from "./ui/RestorePreviewModal";
 import { DiffModal } from "./ui/DiffModal";
 import { VerifyReportModal } from "./ui/VerifyReportModal";
+import { PassphraseModal } from "./ui/PassphraseModal";
 import { ConfirmModal } from "./ui/ConfirmModal";
 import { createProgressUi } from "./ui/progressHost";
 
@@ -32,6 +33,13 @@ export default class RewindVaultPlugin extends Plugin {
       saveSettings: () => this.saveData(settings),
       pluginVersion: this.manifest.version,
       showNotice: (message, timeoutMs) => void new Notice(message, timeoutMs),
+      promptPassphrase: () =>
+        new PassphraseModal(
+          this.app,
+          "Backup passphrase",
+          "Enter the passphrase for your encrypted backups.",
+          false,
+        ).ask(),
     });
     this.services = services;
 
@@ -85,6 +93,8 @@ export default class RewindVaultPlugin extends Plugin {
         write: (text) => navigator.clipboard.writeText(text),
       },
       confirm,
+      askPassphrase: (title, message, repeat) =>
+        new PassphraseModal(this.app, title, message, repeat).ask(),
       save: () => this.saveData(settings),
       onChanged: () => automation.settingsChanged(),
       notifier: services.notifier,
