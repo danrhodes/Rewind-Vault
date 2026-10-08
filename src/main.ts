@@ -21,6 +21,8 @@ import { RestorePreviewModal } from "./ui/RestorePreviewModal";
 import { DiffModal } from "./ui/DiffModal";
 import { VerifyReportModal } from "./ui/VerifyReportModal";
 import { PassphraseModal } from "./ui/PassphraseModal";
+import { LinkReportModal } from "./ui/LinkReportModal";
+import { LinkChecker } from "./core/LinkReport";
 import { ConfirmModal } from "./ui/ConfirmModal";
 import { createProgressUi } from "./ui/progressHost";
 
@@ -71,6 +73,8 @@ export default class RewindVaultPlugin extends Plugin {
         notifier: services.notifier,
         logger: services.logger,
         progress,
+        links: new LinkChecker(services.store, services.getProfile),
+        showLinkReport: (report) => new LinkReportModal(this.app, report).open(),
       },
       busy,
     );

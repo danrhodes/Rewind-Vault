@@ -1,3 +1,10 @@
+import {
+  buildLinkReport,
+  describeLinkReport,
+  type LinkChecker,
+  type LinkReport,
+  type LinkScanState,
+} from "../core/LinkReport";
 import type { RestoreBatchResult } from "../core/RestoreBatch";
 import type { RestoreEngine } from "../core/RestoreEngine";
 import type { RestoreDestination, RestorePreview } from "../core/RestoreTypes";
@@ -18,6 +25,9 @@ export interface RestoreActionDeps {
   notifier: Notifier;
   logger: ILogger;
   progress: ProgressUi;
+  /** Checks links before and after a restore into the vault (the restore link report). */
+  links?: Pick<LinkChecker, "scan">;
+  showLinkReport?: (report: LinkReport) => void;
 }
 
 /** Restore operations behind the restore dialog. Shares the busy flag with the backup actions. */
@@ -55,6 +65,7 @@ export class RestoreActions {
       notifier.warning("Another Rewind Vault operation is already running.");
       return false;
     }
+    const before = destination.kind === "vault" ? await this.scanLinks() : null;
     const cancel = new CancelSource();
     const handle = progress.open("Restoring", cancel);
     const control = {
@@ -74,6 +85,7 @@ export class RestoreActions {
               control,
             );
       notifier.success(describeResult(result));
+      if (before) await this.reportLinks(before);
       return true;
     } catch (error) {
       this.fail("Restore", error);
@@ -82,6 +94,29 @@ export class RestoreActions {
       handle.close();
       this.flag.release();
     }
+  }
+
+  /** Broken links now; null when links are not checked or the scan failed. */
+  private async scanLinks(): Promise<LinkScanState | null> {
+    try {
+      return (await this.deps.links?.scan()) ?? null;
+    } catch (error) {
+      this.deps.logger.warn(
+        `Link check skipped: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      return null;
+    }
+  }
+
+  private async reportLinks(before: LinkScanState): Promise<void> {
+    const after = await this.scanLinks();
+    if (!after) return;
+    const report = buildLinkReport(before, after);
+    this.deps.logger.info(`Restore link report: ${describeLinkReport(report)}`);
+    if (report.fixed.length === 0 && report.broken.length === 0) return;
+    if (report.broken.length > 0) this.deps.notifier.warning(describeLinkReport(report));
+    else this.deps.notifier.info(describeLinkReport(report));
+    this.deps.showLinkReport?.(report);
   }
 
   private fail(action: string, error: unknown): void {
