@@ -4,6 +4,7 @@ import type { CommandDef } from "./commands/definitions";
 import type { Services } from "./services";
 import { RecoverDeletedModal } from "./ui/RecoverDeletedModal";
 import { TimeMachineModal } from "./ui/TimeMachineModal";
+import { TimeTravelModal } from "./ui/TimeTravelModal";
 
 type Confirm = (
   title: string,
@@ -52,6 +53,25 @@ export function buildTimeMachineCommands(
           notifier,
         }).open();
       },
+    },
+  ];
+}
+
+/** The "Vault time travel" command: a read-only view of the vault at any backup. */
+export function buildTimeTravelCommands(app: App, services: Services): CommandDef[] {
+  const { restore, notifier } = services;
+  return [
+    {
+      id: "time-travel",
+      name: "Vault time travel (read-only)",
+      icon: "clock",
+      run: () =>
+        new TimeTravelModal(app, {
+          listPoints: () => restore.listPoints(),
+          listFiles: (id) => restore.listFilesAt({ id }),
+          readFile: (id, path) => restore.readFile({ id }, path),
+          notifier,
+        }).open(),
     },
   ];
 }

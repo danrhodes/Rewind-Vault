@@ -2,7 +2,11 @@ import { Notice, Platform, Plugin } from "obsidian";
 import { Actions, BusyFlag } from "./commands/actions";
 import { MilestoneActions, buildMilestoneCommands } from "./commands/milestoneActions";
 import { TextPromptModal } from "./ui/TextPromptModal";
-import { buildRecoveryCommands, buildTimeMachineCommands } from "./timeMachine";
+import {
+  buildRecoveryCommands,
+  buildTimeMachineCommands,
+  buildTimeTravelCommands,
+} from "./timeMachine";
 import { MaintenanceActions, buildMaintenanceCommands } from "./commands/maintenanceActions";
 import { SettingsActions, buildSettingsCommands } from "./commands/settingsActions";
 import { RestoreActions } from "./commands/restoreActions";
@@ -170,6 +174,7 @@ export default class RewindVaultPlugin extends Plugin {
         ...buildMaintenanceCommands(maintenance),
         ...buildTimeMachineCommands(this.app, services, restoreActions, confirm),
         ...buildRecoveryCommands(this.app, services, restoreActions),
+        ...buildTimeTravelCommands(this.app, services),
         ...buildMilestoneCommands(milestones),
       ],
     );

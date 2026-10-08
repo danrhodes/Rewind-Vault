@@ -3,12 +3,13 @@ import type { ILogger } from "../helpers/logger";
 import type { IClock } from "../helpers/time";
 import { createYielder } from "../helpers/yieldToUI";
 import type { IVaultStore } from "../storage/VaultStore";
-import type { SettingsProfile } from "../types";
+import type { BackupEntry, SettingsProfile } from "../types";
 import { loadIndex, sortedBackups } from "./BackupIndex";
 import { resolveChain, type ResolvedFile, type RestoreSource } from "./ChainResolver";
 import { listFileVersions, type FileVersion } from "./FileVersions";
 import { executeRestore, type RestoreBatchResult } from "./RestoreBatch";
 import { planRestore } from "./RestorePlan";
+import { listFilesAt, listPoints, type PointFile } from "./TimeTravel";
 import { readResolvedFile, type MasterKeyFn } from "./RestoreReader";
 import {
   destinationPath,
@@ -258,6 +259,16 @@ export class RestoreEngine {
       if (!(await ctx.store.exists(path))) missing.push({ path, ...info });
     }
     return missing.sort((a, b) => b.deletedAt - a.deletedAt || (a.path < b.path ? -1 : 1));
+  }
+
+  /** Intact backups the vault can be viewed at, newest first (read-only time travel). */
+  listPoints(): Promise<BackupEntry[]> {
+    return listPoints(this.deps.store, this.context().backupFolder);
+  }
+
+  /** Every file the vault held at a backup. Writes nothing. */
+  listFilesAt(source: RestoreSource): Promise<PointFile[]> {
+    return listFilesAt(this.deps.store, this.context().backupFolder, source);
   }
 
   /** All distinct versions of a file across intact backups, oldest first. */
