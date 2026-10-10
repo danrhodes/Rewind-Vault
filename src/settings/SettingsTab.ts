@@ -9,6 +9,7 @@ import {
   isFieldShown,
   type FieldDef,
 } from "./schema";
+import type { GroupKey } from "./schemaTypes";
 
 /** What the tab needs from the plugin. Keeps the tab independent of main.ts. */
 export interface SettingsHost {
@@ -26,6 +27,9 @@ export interface SettingsHost {
  * vault synced between a computer and a phone keeps different settings on each.
  */
 export class RewindVaultSettingTab extends PluginSettingTab {
+  private activeTab: GroupKey | undefined;
+  private contentEl: HTMLElement | undefined;
+
   constructor(
     app: App,
     plugin: Plugin,
@@ -37,22 +41,55 @@ export class RewindVaultSettingTab extends PluginSettingTab {
   override display(): void {
     const { containerEl } = this;
     containerEl.empty();
-    const profile = this.host.settings[this.host.platform];
     const label = this.host.platform === "mobile" ? "mobile" : "desktop";
     containerEl.createEl("p", {
       text: `These are the ${label} settings. Desktop and mobile keep separate settings.`,
       cls: "setting-item-description",
     });
 
-    for (const group of GROUPS) {
-      const fields = fieldsFor(group.key, this.host.platform);
-      if (fields.length === 0) continue;
-      new Setting(containerEl).setName(group.title).setDesc(group.blurb).setHeading();
-      for (const def of fields) {
-        if (isFieldShown(profile, def, this.host.platform))
-          this.renderField(containerEl, profile, def);
+    const tabs = GROUPS.filter((g) => fieldsFor(g.key, this.host.platform).length > 0);
+    if (!tabs.some((g) => g.key === this.activeTab)) this.activeTab = tabs[0]?.key;
+
+    const bar = containerEl.createDiv({ cls: "rewind-vault-tabs" });
+    for (const group of tabs) {
+      const button = bar.createEl("button", {
+        text: group.title,
+        cls: "rewind-vault-tab",
+      });
+      button.toggleClass("is-active", group.key === this.activeTab);
+      button.addEventListener("click", () => {
+        if (this.activeTab === group.key) return;
+        this.activeTab = group.key;
+        for (const b of Array.from(bar.children)) b.removeClass("is-active");
+        button.addClass("is-active");
+        this.renderContent(false);
+        containerEl.scrollTop = 0;
+      });
+    }
+
+    this.contentEl = containerEl.createDiv();
+    this.renderContent(false);
+  }
+
+  /**
+   * Draw the active tab. Only this block is rebuilt, never the whole screen, and the scroll
+   * position is put back afterwards so changing a setting does not throw the user to the top.
+   */
+  private renderContent(keepScroll: boolean): void {
+    const content = this.contentEl;
+    if (!content) return;
+    const scroller = this.containerEl;
+    const top = scroller.scrollTop;
+    content.empty();
+    const profile = this.host.settings[this.host.platform];
+    const group = GROUPS.find((g) => g.key === this.activeTab);
+    if (group) {
+      new Setting(content).setName(group.title).setDesc(group.blurb).setHeading();
+      for (const def of fieldsFor(group.key, this.host.platform)) {
+        if (isFieldShown(profile, def, this.host.platform)) this.renderField(content, profile, def);
       }
     }
+    if (keepScroll) scroller.scrollTop = top;
   }
 
   private renderField(parent: HTMLElement, profile: SettingsProfile, def: FieldDef): void {
@@ -123,7 +160,7 @@ export class RewindVaultSettingTab extends PluginSettingTab {
     }
     await this.host.save();
     this.host.onChanged?.();
-    if (redraw) this.display();
+    if (redraw) this.renderContent(true);
     return result.value;
   }
 

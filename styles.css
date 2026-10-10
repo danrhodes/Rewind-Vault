@@ -1,0 +1,27 @@
+.rewind-vault-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.rewind-vault-tab {
+  padding: 4px 12px;
+  border-radius: var(--radius-s);
+  background: transparent;
+  color: var(--text-muted);
+  box-shadow: none;
+  cursor: pointer;
+}
+
+.rewind-vault-tab:hover {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+.rewind-vault-tab.is-active {
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+}
