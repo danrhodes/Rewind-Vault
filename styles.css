@@ -32,13 +32,26 @@
   scrollbar-gutter: stable;
 }
 
-.rewind-vault-settings .setting-item-control {
+/* Let the description and the control share the row instead of overlapping: the text side may
+   shrink, the control side keeps its own size, and a wide control drops below the text. */
+.rewind-vault-settings .setting-item {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.rewind-vault-settings .setting-item-info {
+  flex: 1 1 220px;
   min-width: 0;
-  max-width: 60%;
+}
+
+.rewind-vault-settings .setting-item-control {
+  flex: 0 1 auto;
+  max-width: 100%;
 }
 
 .rewind-vault-settings .setting-item-control input[type="text"],
 .rewind-vault-settings .setting-item-control input[type="password"],
+.rewind-vault-settings .setting-item-control input[type="number"],
 .rewind-vault-settings .setting-item-control textarea {
   max-width: 100%;
   box-sizing: border-box;
