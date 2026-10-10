@@ -25,3 +25,21 @@
   background: var(--interactive-accent);
   color: var(--text-on-accent);
 }
+
+/* Keep the page the same width on every tab: reserve the scrollbar space even when a short
+   tab does not need one, and stop wide text boxes from pushing the layout out. */
+.rewind-vault-settings {
+  scrollbar-gutter: stable;
+}
+
+.rewind-vault-settings .setting-item-control {
+  min-width: 0;
+  max-width: 60%;
+}
+
+.rewind-vault-settings .setting-item-control input[type="text"],
+.rewind-vault-settings .setting-item-control input[type="password"],
+.rewind-vault-settings .setting-item-control textarea {
+  max-width: 100%;
+  box-sizing: border-box;
+}

@@ -41,6 +41,7 @@ export class RewindVaultSettingTab extends PluginSettingTab {
   override display(): void {
     const { containerEl } = this;
     containerEl.empty();
+    containerEl.addClass("rewind-vault-settings");
     const label = this.host.platform === "mobile" ? "mobile" : "desktop";
     containerEl.createEl("p", {
       text: `These are the ${label} settings. Desktop and mobile keep separate settings.`,
