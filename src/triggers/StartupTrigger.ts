@@ -1,6 +1,7 @@
 import type { TimerHost, TriggerDeps } from "./TriggerTypes";
 
 const MAX_DELAY_SEC = 300;
+const HOUR_MS = 3_600_000;
 
 /** Whether a backup on startup is wanted: BOTH the Basic switch and the Triggers switch are on. */
 export function startupEnabled(deps: Pick<TriggerDeps, "getProfile">): boolean {
@@ -22,6 +23,7 @@ export class StartupTrigger {
   constructor(
     private readonly deps: TriggerDeps,
     private readonly host: TimerHost,
+    private readonly options: { lastBackupAt?: () => Promise<number | null> } = {},
   ) {}
 
   start(whenReady: (callback: () => void) => void): void {
@@ -55,7 +57,39 @@ export class StartupTrigger {
     return this.timer !== null;
   }
 
+  /** The minimum gap in ms, or 0 when the check is off. */
+  private gapMs(): number {
+    if (!this.options.lastBackupAt) return 0;
+    return Math.max(0, this.deps.getProfile().basic.startupMinGapHours) * HOUR_MS;
+  }
+
+  /** True if a backup newer than the minimum gap exists. A failed lookup counts as no. */
+  private async backedUpRecently(gapMs: number): Promise<boolean> {
+    try {
+      const last = (await this.options.lastBackupAt?.()) ?? null;
+      return last !== null && this.deps.clock.now() - last < gapMs;
+    } catch {
+      return false;
+    }
+  }
+
   private fire(): void {
+    if (!startupEnabled(this.deps)) return;
+    const gapMs = this.gapMs();
+    if (gapMs === 0) {
+      this.run();
+      return;
+    }
+    void this.backedUpRecently(gapMs).then((recent) => {
+      if (recent) {
+        this.deps.logger.info("Backup on startup skipped: a recent backup exists");
+        return;
+      }
+      this.run();
+    });
+  }
+
+  private run(): void {
     if (!startupEnabled(this.deps)) return;
     this.deps.logger.info("Backup on startup");
     this.deps.run("startup").catch((error: unknown) => {

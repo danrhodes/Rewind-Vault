@@ -13,6 +13,7 @@ function baseProfile(): SettingsProfile {
     basic: {
       backupOnStartup: true,
       startupDelaySec: 15,
+      startupMinGapHours: 0,
       autoStyle: "differential",
       includeHidden: true,
       showLegacyCommands: false,

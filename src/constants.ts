@@ -44,6 +44,7 @@ export const ENCRYPTION = {
 
 export const LIMITS = {
   startupDelayMaxSec: 300,
+  startupMinGapMaxHours: 168,
   compressionLevelMin: 0,
   compressionLevelMax: 9,
   defaultLockTimeoutMin: 30,

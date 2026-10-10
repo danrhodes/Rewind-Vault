@@ -24,6 +24,17 @@ export const FIELDS_A: readonly FieldDef[] = [
   },
   {
     group: "basic",
+    key: "startupMinGapHours",
+    kind: "number",
+    name: "Minimum hours between startup backups",
+    desc: "Skip the startup backup if a backup was already made within this many hours. 0 backs up on every start.",
+    min: 0,
+    max: LIMITS.startupMinGapMaxHours,
+    unit: "hours",
+    shownIf: { key: "backupOnStartup", value: true },
+  },
+  {
+    group: "basic",
     key: "autoStyle",
     kind: "dropdown",
     name: "Automatic backup style",

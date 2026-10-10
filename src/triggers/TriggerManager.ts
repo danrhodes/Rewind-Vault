@@ -46,7 +46,7 @@ export class TriggerManager {
 
   constructor(private readonly deps: TriggerManagerDeps) {
     const { triggers, platform, timers } = deps;
-    this.startup = new StartupTrigger(triggers, timers);
+    this.startup = new StartupTrigger(triggers, timers, { lastBackupAt: deps.lastBackupAt });
     this.scheduler = new Scheduler(triggers, timers, deps.deepVerify, deps.rehearsal);
     this.resume = new ResumeTrigger(triggers, platform, { lastBackupAt: deps.lastBackupAt });
     this.events = new EventTrigger(triggers, timers, deps.events);

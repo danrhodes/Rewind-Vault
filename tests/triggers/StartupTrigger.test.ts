@@ -7,7 +7,10 @@ import { MockLogger } from "../mocks/MockLogger";
 beforeEach(() => vi.useFakeTimers());
 afterEach(() => vi.useRealTimers());
 
-function setup(tweak: (p: ReturnType<typeof createDefaultProfile>) => void = () => undefined) {
+function setup(
+  tweak: (p: ReturnType<typeof createDefaultProfile>) => void = () => undefined,
+  lastBackupAt?: () => Promise<number | null>,
+) {
   const profile = createDefaultProfile("desktop");
   tweak(profile);
   const logger = new MockLogger();
@@ -16,6 +19,7 @@ function setup(tweak: (p: ReturnType<typeof createDefaultProfile>) => void = () 
   const trigger = new StartupTrigger(
     { clock: { now: () => Date.now() }, logger, getProfile: () => profile, run },
     globalTimerHost,
+    { lastBackupAt },
   );
   /** Obsidian's onLayoutReady: collects callbacks until `layoutReady()` is called. */
   const waiting: (() => void)[] = [];
@@ -153,5 +157,57 @@ describe("StartupTrigger", () => {
     expect(s.logger.entries.some((e) => e.level === "error" && /locked/.test(e.message))).toBe(
       true,
     );
+  });
+});
+
+describe("StartupTrigger minimum gap", () => {
+  const HOUR = 3_600_000;
+  const fireNow = async (s: ReturnType<typeof setup>) => {
+    s.trigger.start(s.whenReady);
+    s.layoutReady();
+    await vi.advanceTimersByTimeAsync(0);
+  };
+
+  it("skips when the last backup is within the gap", async () => {
+    const s = setup(
+      (p) => void ((p.basic.startupDelaySec = 0), (p.basic.startupMinGapHours = 4)),
+      async () => Date.now() - 2 * HOUR,
+    );
+    await fireNow(s);
+    expect(s.fired).toEqual([]);
+  });
+
+  it("runs when the last backup is older than the gap", async () => {
+    const s = setup(
+      (p) => void ((p.basic.startupDelaySec = 0), (p.basic.startupMinGapHours = 4)),
+      async () => Date.now() - 5 * HOUR,
+    );
+    await fireNow(s);
+    expect(s.fired).toEqual(["startup"]);
+  });
+
+  it("always runs with a gap of 0, and when there is no backup yet", async () => {
+    const zero = setup(
+      (p) => void ((p.basic.startupDelaySec = 0), (p.basic.startupMinGapHours = 0)),
+      async () => Date.now(),
+    );
+    await fireNow(zero);
+    const none = setup(
+      (p) => void ((p.basic.startupDelaySec = 0), (p.basic.startupMinGapHours = 4)),
+      async () => null,
+    );
+    await fireNow(none);
+    expect([zero.fired, none.fired]).toEqual([["startup"], ["startup"]]);
+  });
+
+  it("runs if the last-backup lookup fails", async () => {
+    const s = setup(
+      (p) => void ((p.basic.startupDelaySec = 0), (p.basic.startupMinGapHours = 4)),
+      async () => {
+        throw new Error("no index");
+      },
+    );
+    await fireNow(s);
+    expect(s.fired).toEqual(["startup"]);
   });
 });

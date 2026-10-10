@@ -35,6 +35,7 @@ const clamp = (n: number, min: number, max: number): number =>
 /** Pull values back into their valid ranges. Never lets encryption drop below policy. */
 function sanitizeProfile(p: SettingsProfile): SettingsProfile {
   p.basic.startupDelaySec = clamp(p.basic.startupDelaySec, 0, LIMITS.startupDelayMaxSec);
+  p.basic.startupMinGapHours = clamp(p.basic.startupMinGapHours, 0, LIMITS.startupMinGapMaxHours);
   p.zip.compressionLevel = Math.round(
     clamp(p.zip.compressionLevel, LIMITS.compressionLevelMin, LIMITS.compressionLevelMax),
   );

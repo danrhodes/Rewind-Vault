@@ -7,6 +7,8 @@ export interface BasicSettings {
   backupOnStartup: boolean;
   /** Seconds, 0-300. */
   startupDelaySec: number;
+  /** Hours, 0-168. Skip the startup backup if one was made more recently (0 = always). */
+  startupMinGapHours: number;
   autoStyle: BackupStyle;
   includeHidden: boolean;
   showLegacyCommands: boolean;
