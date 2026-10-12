@@ -1,4 +1,6 @@
 # Rewind Vault
+<img width="200" height="200" alt="000073 - Settings - Dan Rhodes - Obsidian 1 14 4" src="https://github.com/user-attachments/assets/16d5389a-8650-4f45-96f8-1e04d46f4b90" />
+
 
 Backup, restore and verification for your Obsidian vault, on desktop and mobile.
 
