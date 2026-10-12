@@ -1,5 +1,26 @@
 # Rewind Vault
 <img width="200" height="200" alt="000073 - Settings - Dan Rhodes - Obsidian 1 14 4" src="https://github.com/user-attachments/assets/16d5389a-8650-4f45-96f8-1e04d46f4b90" />
+<img width="200" height="200" alt="000074 - Settings - Dan Rhodes - Obsidian 1 14 4" src="https://github.com/user-attachments/assets/a0953c6d-7770-453d-8062-df6090eaf844" />
+<img width="200" height="200" alt="000075 - Settings - Dan Rhodes - Obsidian 1 14 4" src="https://github.com/user-attachments/assets/e1b21af1-0e74-4ce6-a39e-7c8c72250460" />
+<img width="200" height="200" alt="000076 - Settings - Dan Rhodes - Obsidian 1 14 4" src="https://github.com/user-attachments/assets/28616b6a-4ace-4721-a04f-f15e0856b345" />
+<img width="200" height="200" alt="000077 - Settings - Dan Rhodes - Obsidian 1 14 4" src="https://github.com/user-attachments/assets/fd4f1728-0fca-4dab-83be-8023d96b21c1" />
+<img width="200" height="200" alt="000078 - Settings - Dan Rhodes - Obsidian 1 14 4" src="https://github.com/user-attachments/assets/07877e56-ac26-4fd1-b73f-1562dd0af1d3" />
+<img width="200" height="200" alt="000079 - Settings - Dan Rhodes - Obsidian 1 14 4" src="https://github.com/user-attachments/assets/28de9a94-0499-4e64-a3e4-462272be3657" />
+<img width="200" height="200" alt="000080 - Settings - Dan Rhodes - Obsidian 1 14 4" src="https://github.com/user-attachments/assets/8bc94994-81ce-4e61-90a5-dcbcbf266e7d" />
+<img width="200" height="200" alt="000081 - Settings - Dan Rhodes - Obsidian 1 14 4" src="https://github.com/user-attachments/assets/61c0fff8-5388-44e3-9d3d-ac4f1279b8b0" />
+<img width="200" height="200" alt="000082 - Settings - Dan Rhodes - Obsidian 1 14 4" src="https://github.com/user-attachments/assets/ec1f79a7-7d40-41ea-b91e-aa97cd2e0250" />
+<img width="200" height="200" alt="000083 - Settings - Dan Rhodes - Obsidian 1 14 4" src="https://github.com/user-attachments/assets/901b0611-7316-4f55-a0b4-688f8109068d" />
+<img width="200" height="200" alt="000084 - Settings - Dan Rhodes - Obsidian 1 14 4" src="https://github.com/user-attachments/assets/bb075d82-02cd-4ee2-aabb-db6af629171b" />
+
+
+
+
+
+
+
+
+
+
 
 
 Backup, restore and verification for your Obsidian vault, on desktop and mobile.
