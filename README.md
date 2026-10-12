@@ -4,11 +4,6 @@ Backup, restore and verification for your Obsidian vault, on desktop and mobile.
 
 Rewind Vault keeps dated backups of your notes inside your vault, checks that they can really be restored, and lets you bring back a whole vault, a folder, a single note, or an older version of a note. Everything is configurable, and nothing it does can overwrite your live notes unless you explicitly ask.
 
-> **Status: early pre-release (0.0.1). Please read before installing.**
->
-> - The engines (backup, restore, verification, retention) and the screens are written and covered by more than 1,300 automated tests, but **the screens and triggers have not yet been run in a real copy of Obsidian or on a phone**. The list of checks still to do is in [TRACKER.md](TRACKER.md) (the Manual Test Queue). Treat this as a test build: keep your own copy of anything you cannot lose.
-> - It is not in the community plugin list yet. A BRAT beta is planned once the manual tests pass.
-
 ## What it does
 
 - **Full and differential backups.** A full backup holds everything. A differential one holds only what changed since the previous backup, plus a note of what you deleted. Backups are normal `.zip` files you can open with any tool (unless you turn on encryption).
@@ -25,7 +20,14 @@ Rewind Vault keeps dated backups of your notes inside your vault, checks that th
 
 ## Install
 
-There is no release yet. To try it, build it and copy three files:
+Rewind Vault is in the Obsidian community plugin store.
+
+1. Open **Settings > Community plugins** and turn off Restricted mode if it is on.
+2. Select **Browse**, search for **Rewind Vault**, then **Install** and **Enable**.
+
+Requires Obsidian 1.4.0 or newer.
+
+To build it yourself instead:
 
 ```bash
 git clone https://github.com/danrhodes/Rewind-Vault.git
@@ -34,7 +36,7 @@ npm install
 npm run build
 ```
 
-Copy `main.js` and `manifest.json` into `<your vault>/.obsidian/plugins/rewind-vault/`, then enable **Rewind Vault** under Settings > Community plugins. Requires Obsidian 1.4.0 or newer. A BRAT-installable beta is planned.
+Then copy `main.js` and `manifest.json` into `<your vault>/.obsidian/plugins/rewind-vault/` and enable the plugin.
 
 ## Using it
 
