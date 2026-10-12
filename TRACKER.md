@@ -8,7 +8,7 @@ Priority: P1 now · P2 schedule · P3 delegate/later · P4 defer.
 - Current phase: 10
 - Last session: 2026-10-08
 - Next task: T-161 (blocked until the Manual Test Queue is empty)(T-005 awaiting MT-1)
-- Tasks done: 105 / 110
+- Tasks done: 106 / 111
 
 ---
 
@@ -147,6 +147,7 @@ Priority: P1 now · P2 schedule · P3 delegate/later · P4 defer.
 - [ ] T-162 [P1] Full manual test pass: iOS + Android | T-161 | —
 - [ ] T-163 [P2] BRAT beta release | T-162 | tag + release assets
 - [ ] T-164 [P2] Community plugin submission | T-163 | —
+- [x] T-165 [P2] Release workflow `.github/workflows/release.yml`: pre-release on push to main, full release on manual run | T-005 | owner request; not yet run on GitHub (see Manual Test Queue)
 
 ---
 
@@ -163,6 +164,7 @@ Priority: P1 now · P2 schedule · P3 delegate/later · P4 defer.
 | 2026-10-08 | T-139 DESIGN NOTE (proposal, not adopted): content-addressed dedup. Option A, cross-references: a manifest entry may point at the same-hash entry in an older intact backup instead of storing the bytes again. Option B, blob store: `backup/blobs/<hash>` holds each unique file once, manifests list hashes, ZIPs are dropped. Both break two current guarantees: a backup folder is a self-contained standard ZIP set, and deleting/pruning one backup never affects another except through the diff chain. A needs reference counting in retention, delete, verify (L5 must follow references), restore planning and external copy; full backups stop being standalone, which defeats named milestones. B is a new storage format (no unzip, new verify, new restore). Recommendation: do not build it now. Differentials already skip unchanged files, which is where most of the saving is; the remaining wins (moved files, reverted files, duplicate attachments) are small for typical vaults. If wanted later, build A only for differentials within one chain, behind a setting, and never for full or pinned backups. Needs an owner decision before any code. | Plan section 6 data formats and the unzip guarantee make this a format change, not a feature. |
 | 2026-10-08 | T-140 DESIGN NOTE (adopted): recovery records are SIDECAR files `part-NNN.zip.rr` next to each ZIP part, so the ZIPs stay standard and nothing existing changes. Erasure code over GF(256) with a Cauchy matrix (PAR2 idea): a part is cut into at most 200 blocks of at least 64 KB, `m` parity blocks cover any `m` damaged blocks, and a CRC-32 per block (in a checksummed header) finds which are damaged. A repair only replaces a part when the rebuilt bytes hash to the SHA-256 the manifest recorded, so it cannot produce a wrong file. Setting zip.recoveryPercent (0 = off, default; max 50). Limits: a damaged record header means no repair; whole-file loss needs parity at least as big as the file. | Additive and testable without touching the backup format. Chosen over whole-file mirroring (double the space) and per-block ZIP changes (breaks unzip). |
 | 2026-10-08 | T-139 will NOT be built (owner chose option C). Differentials already skip unchanged files, and dedup would break the standalone-ZIP guarantee. Revisit only if real vaults show large duplicated attachments. | Owner decision on the T-139 design note. |
+| 2026-10-12 | Release workflow added as T-165 (owner request, adapted from AutoKeywordLinker). Push to main publishes a pre-release `x.y.z-pre-release.N-sha`; manual run bumps manifest.json, package.json and versions.json and publishes a full release. Zip is `rewind-vault-<version>.zip`. | Easy publishing and BRAT-friendly assets. |
 
 ## Blockers
 - T-139 (content-addressed dedup): owner decided on 2026-10-08 not to build it. Left as [!] on purpose; it needs no further work.
@@ -203,6 +205,7 @@ MT-31 | Android + iPhone (older phone) | Turn on Low-memory mode and back up and
 MT-32 | Android + iPhone | With "Keep the screen on during a backup" on (default on phones), start a large backup and leave the phone untouched: the screen stays on until the backup ends, then dims normally; with the setting off the screen may dim; on a device without Wake Lock support the backup still runs and no error shows; switching away mid-backup does not crash | T-151 | pending
 MT-33 | Android + iPhone | Start a large backup, switch to another app for a minute until the OS suspends Obsidian (or force-quit it), then reopen: the log says "continuing" the same backup id, the progress resumes from the last finished part and ends with one complete backup; with "Continue an interrupted backup" off, a fresh backup is made instead; works even with nothing changed since | T-152 | pending
 MT-34 | Obsidian desktop + mobile | Open Rewind Vault settings: groups show as tabs; switching tab shows that group; tick a toggle that shows/hides other fields (e.g. encryption) and scroll position stays put; copy styles.css next to main.js and manifest.json | T-103 (fix, 2026-10-10) | pending
+MT-35 | GitHub Actions | Push to main: a pre-release `0.0.1-pre-release.1-<sha>` appears with main.js, manifest.json, styles.css and the zip. Run "Build and Release" manually with patch: manifest/package/versions bump to 0.0.2 and a full release is published. |
 
 ## Ideas Parking Lot
 _Out-of-plan ideas. Do not build until promoted to a task._
@@ -323,3 +326,4 @@ _Format: `YYYY-MM-DD | tasks touched | tests added | decisions | blockers | next
 - 2026-10-08 | T-005 done | none | Owner reported the GitHub CI run green (MT-1 passed). Clean-clone run of the same four steps also passed locally. | none | T-161 after the remaining manual tests (MT-2 to MT-33)
 - 2026-10-10 | T-103 follow-up (owner request) | none (UI only, Obsidian runtime needed; see MT-34) | Settings groups are now tabs (one tab per group). Changing a setting that shows/hides other fields redraws only the tab content and restores scroll position, instead of rebuilding the whole screen (which jumped to the top). Active tab is remembered while Obsidian stays open. New styles.css for the tab bar, must be shipped next to main.js. | styles.css must be added to release assets and the test-vault copy step | T-161 after the remaining manual tests
 - 2026-10-10 | T-103 follow-up (owner request) | tests/triggers/StartupTrigger.test.ts (+4: skipped inside the gap, runs after it, runs with gap 0 or no backup yet, runs if the lookup fails) | New setting basic.startupMinGapHours (0-168, default 0 = always back up on start), in the Basic tab, shown when Back up on startup is on. The check uses the newest backup in the index, so it holds across restarts. With 0 the old synchronous path is unchanged. Owner asked for it directly, so it is outside the original plan. | none | T-161 after the remaining manual tests
+- 2026-10-12 | T-165 done | none (CI config) | Added release.yml. Runs ci checks then build, versions, changelog, zip, release; keeps last 25 pre-releases. | Needs a real GitHub run | T-161
