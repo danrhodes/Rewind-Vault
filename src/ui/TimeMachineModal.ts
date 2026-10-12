@@ -79,7 +79,7 @@ export class TimeMachineModal extends Modal {
     const el = parent.createDiv({ cls: "rewind-vault-backup-row" });
     const text = el.createDiv();
     text.createEl("strong", { text: row.title });
-    text.createEl("div", { text: row.detail, cls: "setting-item-description" });
+    text.createDiv({ text: row.detail, cls: "setting-item-description" });
     if (row.kind === "deleted") return;
     const buttons = el.createDiv({ cls: "rewind-vault-backup-actions" });
     const add = (label: string, run: () => Promise<void>, warn = false): void => {
@@ -115,16 +115,16 @@ export class TimeMachineModal extends Modal {
         target.setText(view.reason);
         return;
       }
-      target.createEl("div", {
+      target.createDiv({
         text: `${view.removed} line(s) only in this version (-), ${view.added} only in the note now (+)`,
       });
       for (const line of view.lines) {
         if (line.kind === "gap") {
-          target.createEl("div", { text: `… ${line.hidden} unchanged line(s) …` });
+          target.createDiv({ text: `… ${line.hidden} unchanged line(s) …` });
           continue;
         }
         const mark = line.kind === "add" ? "+ " : line.kind === "del" ? "- " : "  ";
-        const el = target.createEl("div", { text: mark + line.text });
+        const el = target.createDiv({ text: mark + line.text });
         if (line.kind === "add") el.setCssProps({ color: "var(--text-success)" });
         if (line.kind === "del") el.setCssProps({ color: "var(--text-error)" });
       }

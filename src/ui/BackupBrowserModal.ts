@@ -103,8 +103,8 @@ export class BackupBrowserModal extends Modal {
     const el = parent.createDiv({ cls: "rewind-vault-backup-row" });
     const text = el.createDiv();
     text.createEl("strong", { text: row.title });
-    for (const badge of row.badges) text.createEl("span", { text: ` [${badge}]` });
-    text.createEl("div", { text: row.subtitle, cls: "setting-item-description" });
+    for (const badge of row.badges) text.createSpan({ text: ` [${badge}]` });
+    text.createDiv({ text: row.subtitle, cls: "setting-item-description" });
 
     const buttons = el.createDiv({ cls: "rewind-vault-backup-actions" });
     const add = (label: string, onClick: () => void | Promise<void>, warn = false): void => {

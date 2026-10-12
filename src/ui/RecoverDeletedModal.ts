@@ -86,7 +86,7 @@ export class RecoverDeletedModal extends Modal {
       });
       const text = row.createDiv();
       text.createEl("strong", { text: file.path });
-      text.createEl("div", {
+      text.createDiv({
         text: `Deleted ${formatLocalDateTime(file.deletedAt)}`,
         cls: "setting-item-description",
       });

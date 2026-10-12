@@ -43,13 +43,13 @@ export class FieldValidator {
     if (typeof v !== "string" || (!allowEmpty && v === "")) {
       this.fail(`${where}.${key}`, "must be a non-empty string");
     }
-    return v as string;
+    return v;
   }
 
   bool(o: Obj, key: string, where: string): boolean {
     const v = o[key];
     if (typeof v !== "boolean") this.fail(`${where}.${key}`, "must be a boolean");
-    return v as boolean;
+    return v;
   }
 
   num(o: Obj, key: string, where: string, integer = true): number {
@@ -62,7 +62,7 @@ export class FieldValidator {
     ) {
       this.fail(`${where}.${key}`, `must be a non-negative ${integer ? "integer" : "number"}`);
     }
-    return v as number;
+    return v;
   }
 
   oneOf<T extends string>(o: Obj, key: string, where: string, allowed: readonly T[]): T {

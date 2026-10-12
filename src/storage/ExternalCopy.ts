@@ -19,7 +19,7 @@ export interface ExternalFs {
  * global `require` instead of an import, so the mobile bundle contains no reference to `fs`.
  */
 export function loadNodeFs(): ExternalFs | null {
-  const load = (globalThis as { require?: (id: string) => unknown }).require;
+  const load = (window as unknown as { require?: (id: string) => unknown }).require;
   if (typeof load !== "function") return null;
   try {
     const fs = load("fs") as { promises?: ExternalFs };

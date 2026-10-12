@@ -46,7 +46,7 @@ export async function* unpackPart(
   const readChunk = options.readChunkBytes ?? DEFAULT_READ_CHUNK;
 
   const ready: RawEntry[] = [];
-  let failure: unknown = null;
+  let failure: Error | null = null;
 
   const unzip = new Unzip();
   unzip.register(UnzipInflate);
@@ -71,7 +71,7 @@ export async function* unpackPart(
     try {
       file.start();
     } catch (error) {
-      failure = error;
+      failure = error instanceof Error ? error : new Error(String(error));
     }
   };
 

@@ -17,6 +17,7 @@ import { createAutomation, type Automation } from "./automation";
 import { createServices, type Services } from "./services";
 import { migrateSettings } from "./settings/migrate";
 import { RewindVaultSettingTab } from "./settings/SettingsTab";
+import { setConfigDir } from "./helpers/configDir";
 import { createTextAppender } from "./storage/TextAppender";
 import { AdapterVaultStore } from "./storage/VaultStore";
 import { loadIndex } from "./core/BackupIndex";
@@ -37,6 +38,7 @@ export default class RewindVaultPlugin extends Plugin {
   private automation: Automation | null = null;
 
   override async onload(): Promise<void> {
+    setConfigDir(this.app.vault.configDir);
     const settings = migrateSettings(await this.loadData());
     const store = new AdapterVaultStore(this.app.vault.adapter);
     const services = createServices({

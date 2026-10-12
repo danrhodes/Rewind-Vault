@@ -29,7 +29,7 @@ const defaultId = (): string =>
     b.toString(16).padStart(2, "0"),
   ).join("");
 
-const defaultSleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
+const defaultSleep = (ms: number): Promise<void> => new Promise((r) => window.setTimeout(r, ms));
 
 function parseLock(text: string): LockInfo | null {
   try {

@@ -38,10 +38,10 @@ export interface TimerHost {
 }
 
 export const globalTimerHost: TimerHost = {
-  setInterval: (callback, ms) => globalThis.setInterval(callback, ms) as unknown as number,
-  clearInterval: (handle) => globalThis.clearInterval(handle),
-  setTimeout: (callback, ms) => globalThis.setTimeout(callback, ms) as unknown as number,
-  clearTimeout: (handle) => globalThis.clearTimeout(handle),
+  setInterval: (callback, ms) => window.setInterval(callback, ms),
+  clearInterval: (handle) => window.clearInterval(handle),
+  setTimeout: (callback, ms) => window.setTimeout(callback, ms),
+  clearTimeout: (handle) => window.clearTimeout(handle),
 };
 
 export interface TriggerDeps {

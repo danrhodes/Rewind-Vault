@@ -212,7 +212,7 @@ export const FIELDS_C: readonly FieldDef[] = [
     group: "exclusions",
     key: "excludeObsidian",
     kind: "toggle",
-    name: "Exclude the .obsidian folder",
+    name: "Exclude the Obsidian settings folder",
     desc: "Your settings, themes and plugins. Backing it up lets you restore your setup too.",
   },
   {

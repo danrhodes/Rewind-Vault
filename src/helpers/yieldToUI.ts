@@ -1,6 +1,6 @@
 /** Give the event loop a turn so rendering and input can run. */
 export function yieldToUI(): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, 0));
+  return new Promise((resolve) => window.setTimeout(resolve, 0));
 }
 
 /**

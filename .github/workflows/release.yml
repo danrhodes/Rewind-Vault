@@ -16,6 +16,8 @@ on:
 
 permissions:
   contents: write
+  id-token: write
+  attestations: write
 
 concurrency:
   group: release
@@ -96,15 +98,24 @@ jobs:
           git commit -m "Release version $VERSION"
           git push
 
-      - name: Package
-        run: zip rewind-vault-${{ steps.v.outputs.version }}.zip main.js manifest.json styles.css
+      - name: Release commit
+        id: commit
+        run: echo "sha=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
+
+      - name: Attest release assets
+        uses: actions/attest-build-provenance@v3
+        with:
+          subject-path: |
+            main.js
+            manifest.json
+            styles.css
 
       - name: Create release
         uses: ncipollo/release-action@v1
         with:
-          artifacts: "main.js,manifest.json,styles.css,rewind-vault-${{ steps.v.outputs.version }}.zip"
+          artifacts: "main.js,manifest.json,styles.css"
           tag: ${{ steps.v.outputs.version }}
-          commit: ${{ github.sha }}
+          commit: ${{ steps.commit.outputs.sha }}
           name: ${{ steps.v.outputs.version }}
           bodyFile: changelog.txt
           prerelease: ${{ steps.v.outputs.full != 'true' }}

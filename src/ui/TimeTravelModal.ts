@@ -112,7 +112,7 @@ export class TimeTravelModal extends Modal {
       const row = list.createDiv({ cls: "rewind-vault-backup-row" });
       const text = row.createDiv();
       text.createEl("strong", { text: file.path });
-      text.createEl("div", {
+      text.createDiv({
         text: describeFileRow(file, formatLocalDateTime),
         cls: "setting-item-description",
       });

@@ -91,7 +91,7 @@ describe("scanVault", () => {
 
   it(".obsidian is kept by default but can be excluded on its own", async () => {
     const store = await vault({ "a.md": "x", ".obsidian/app.json": "{}", "x/.obsidian/y": "k" });
-    expect(await paths(store, { ...base, excludeObsidian: true })).toEqual([
+    expect(await paths(store, { ...base, excludeObsidian: true, configDir: ".obsidian" })).toEqual([
       "a.md",
       "x/.obsidian/y",
     ]);

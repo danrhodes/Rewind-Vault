@@ -41,13 +41,13 @@ export interface Services {
   /** Notices honouring the notification level. */
   readonly notifier: Notifier;
   /** Verify an existing backup under the backup lock and record the result (marks corrupt on failure). */
-  verifyBackup(backupId: string, options: VerifyOptions): Promise<VerifyReport>;
+  verifyBackup: (backupId: string, options: VerifyOptions) => Promise<VerifyReport>;
   /** What verification and deep verify need; used by the scheduler. */
   readonly verifyDeps: VerifyRunnerDeps;
   /** Rewrite the backup status note now (does nothing while the setting is off). */
-  refreshStatusNote(): Promise<boolean>;
+  refreshStatusNote: () => Promise<boolean>;
   /** Effective settings for this platform. Re-read after settings change. */
-  getProfile(): SettingsProfile;
+  getProfile: () => SettingsProfile;
   saveSettings(): Promise<void>;
 }
 

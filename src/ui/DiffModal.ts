@@ -82,7 +82,7 @@ export class DiffModal extends Modal {
     const el = parent.createDiv({ cls: "rewind-vault-backup-row" });
     const text = el.createDiv();
     text.createEl("strong", { text: title });
-    text.createEl("div", { text: detail, cls: "setting-item-description" });
+    text.createDiv({ text: detail, cls: "setting-item-description" });
     el.createEl("button", { text: "Show changes" }).addEventListener(
       "click",
       () => void this.showDiff(row),
@@ -102,16 +102,16 @@ export class DiffModal extends Modal {
         target.setText(`${row.path}: ${view.reason}`);
         return;
       }
-      target.createEl("div", {
+      target.createDiv({
         text: `${row.path}: ${view.removed} line(s) only in the backup (-), ${view.added} only now (+)`,
       });
       for (const line of view.lines) {
         if (line.kind === "gap") {
-          target.createEl("div", { text: `… ${line.hidden} unchanged line(s) …` });
+          target.createDiv({ text: `… ${line.hidden} unchanged line(s) …` });
           continue;
         }
         const mark = line.kind === "add" ? "+ " : line.kind === "del" ? "- " : "  ";
-        const el = target.createEl("div", { text: mark + line.text });
+        const el = target.createDiv({ text: mark + line.text });
         if (line.kind === "add") el.setCssProps({ color: "var(--text-success)" });
         if (line.kind === "del") el.setCssProps({ color: "var(--text-error)" });
       }

@@ -1,3 +1,4 @@
+import { getConfigDir } from "../helpers/configDir";
 import { createGlobMatcher, isHiddenPath, isInsideFolder } from "../helpers/glob";
 import { createYielder } from "../helpers/yieldToUI";
 import type { IVaultStore } from "../storage/VaultStore";
@@ -9,6 +10,8 @@ export interface ScanOptions {
   includeHidden: boolean;
   excludeHidden: boolean;
   excludeObsidian: boolean;
+  /** The vault config folder to exclude when `excludeObsidian` is on. */
+  configDir?: string;
   excludeGit: boolean;
   excludeNodeModules: boolean;
   excludeTrash: boolean;
@@ -24,6 +27,7 @@ export function scanOptionsFromProfile(profile: SettingsProfile): ScanOptions {
     includeHidden: profile.basic.includeHidden,
     excludeHidden: profile.exclusions.excludeHidden,
     excludeObsidian: profile.exclusions.excludeObsidian,
+    configDir: getConfigDir(),
     excludeGit: profile.exclusions.excludeGit,
     excludeNodeModules: profile.exclusions.excludeNodeModules,
     excludeTrash: profile.exclusions.excludeTrash,
@@ -56,7 +60,8 @@ export function createExcludeCheck(options: ScanOptions): ExcludeCheck {
     if (options.backupFolder !== "" && isInsideFolder(path, options.backupFolder)) return true;
     if (options.excludePaths?.includes(path)) return true;
     if (!hiddenAllowed && isHiddenPath(path)) return true;
-    if (options.excludeObsidian && isInsideFolder(path, ".obsidian")) return true;
+    if (options.excludeObsidian && options.configDir && isInsideFolder(path, options.configDir))
+      return true;
     if (options.excludeTrash && isInsideFolder(path, ".trash")) return true;
     if (options.excludeGit && hasSegment(path, ".git")) return true;
     if (options.excludeNodeModules && hasSegment(path, "node_modules")) return true;

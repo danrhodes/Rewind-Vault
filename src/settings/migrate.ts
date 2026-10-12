@@ -14,7 +14,7 @@ const isObj = (v: unknown): v is Obj => typeof v === "object" && v !== null && !
 function mergeWithDefaults(defaults: unknown, raw: unknown): unknown {
   if (Array.isArray(defaults)) {
     if (!Array.isArray(raw)) return defaults;
-    const sample = defaults[0];
+    const sample: unknown = defaults[0];
     const elementType = sample === undefined ? "string" : typeof sample;
     return raw.filter((item) => typeof item === elementType);
   }

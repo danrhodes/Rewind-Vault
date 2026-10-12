@@ -16,7 +16,7 @@ export interface MaintenanceDeps {
   /** Shared with the backup and restore actions: no maintenance during a run. */
   busy: BusyFlag;
   /** Rewrite the status note; resolves false when the setting is off or the write failed. */
-  refreshStatusNote(): Promise<boolean>;
+  refreshStatusNote: () => Promise<boolean>;
   massChange: { isPaused(): boolean; summary(): string; release(): void };
 }
 
