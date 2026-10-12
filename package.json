@@ -1,6 +1,6 @@
 {
   "name": "rewind-vault",
-  "version": "0.0.2",
+  "version": "0.0.4",
   "description": "Backup and restore plugin for Obsidian (mobile + desktop).",
   "private": true,
   "type": "module",
